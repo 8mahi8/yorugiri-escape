@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#101521">
-<title>夜霧の脱出 | オリジナル追跡ゲーム</title>
+<title>夜霧の脱出 v0.3 | オリジナル追跡ゲーム</title>
 <style>
 :root{--paper:#f6f0df;--muted:#b5c0c9;--gold:#f1c478;--aqua:#9fe3d3;--danger:#f390a2;--glass:rgba(12,18,29,.78)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -86,7 +86,7 @@ h1{font-size:clamp(37px,10vw,69px);letter-spacing:5px;line-height:1.1;font-weigh
 <div id="mobileControls"><div id="moveArea" aria-label="左側をタッチして移動"><div id="stickBase"><div id="stickNub"></div></div></div><div id="touchButtons"><button id="touchDash" class="touchBtn" aria-label="ダッシュ"><span class="symbol">➜</span><span>ダッシュ</span></button><button id="touchAction" class="touchBtn" aria-label="アクション"><span class="symbol">✦</span><span id="touchActionText">調べる</span></button></div></div>
 <button id="pauseBtn" aria-label="一時停止">Ⅱ</button>
 <div id="screens">
- <div class="screen" id="menuScreen"><div class="eyebrow">ASYMMETRIC CHASE / SOLO DEMO</div><h1>夜霧の脱出</h1><p class="subtitle">見つかるな。修復せよ。生きて門をくぐれ。<br>追跡者が徘徊する廃墟で、君は一人で脱出できるか。</p><div class="ruleBox"><p>✧ <b>暗号機を3台</b> 解読して脱出ゲートを開ける</p><p>✧ 追跡者に <b>2回捕まると敗北</b></p><p>✧ <b>板を倒す</b> と追跡者を足止めできる</p><p>✧ <b>草むら</b> に隠れて視線を切ろう</p><p>✧ PC：WASD＋E長押し＋Shift ／ スマホ：左画面をタッチして移動・右ボタンで操作</p></div><button class="primary" id="startBtn">探索を開始する　→</button><div class="footnote">ひとり用BOT対戦の試作版。オリジナル作品です。<br>音を使うため、必要に応じて端末の音量を上げてください。</div></div>
+ <div class="screen" id="menuScreen"><div class="eyebrow">ASYMMETRIC CHASE / SOLO DEMO</div><h1>夜霧の脱出</h1><p class="subtitle">見つかるな。修復せよ。生きて門をくぐれ。<br>追跡者が徘徊する廃墟で、君は一人で脱出できるか。</p><div class="ruleBox"><p>✧ <b>暗号機を3台</b> 解読して脱出ゲートを開ける</p><p>✧ 追跡者に <b>2回捕まると敗北</b></p><p>✧ <b>板を倒す</b> と追跡者を足止めできる</p><p>✧ <b>赤い扇形がハンターの視界</b>。背後や壁の裏なら見つかりにくい</p><p>✧ <b>角を曲がる・草むらに隠れる</b>と追跡を撒ける。音には気をつけて</p><p>✧ PC：WASD＋E長押し＋Shift ／ スマホ：左画面をタッチして移動・右ボタンで操作</p></div><button class="primary" id="startBtn">探索を開始する　→</button><div class="footnote">ひとり用BOT対戦の試作版。オリジナル作品です。<br>音を使うため、必要に応じて端末の音量を上げてください。</div></div>
  <div class="screen" id="resultScreen" style="display:none"><div class="eyebrow" id="resultTag">RESULT</div><h1 id="resultTitle">脱出成功</h1><p class="subtitle" id="resultSubtitle">夜霧の向こうに道が開けた。</p><div id="resultStat"></div><button class="primary" id="restartBtn">もう一度プレイ　→</button><div class="footnote">スタート画面に戻るには画面を更新してください。</div></div>
  <div class="screen" id="pauseScreen" style="display:none"><div class="eyebrow">PAUSED</div><h1>一時停止</h1><p class="subtitle">霧の中で時間が止まっている。</p><button class="primary" id="resumeBtn">ゲームに戻る　→</button><div class="footnote">Escキーでも再開できます。</div></div>
 </div>
@@ -96,6 +96,8 @@ const cvs=document.getElementById('game'),ctx=cvs.getContext('2d',{alpha:false})
 const $=id=>document.getElementById(id);
 const hud=$('hud'),mobile=$('mobileControls'),screens=$('screens'),actionBtn=$('touchAction'),dashBtn=$('touchDash');
 const W=1600,H=1050,TAU=Math.PI*2;
+// SOLO BALANCE v0.3: local perception, readable vision cone, and escapable chases.
+const AI={sight:275,fov:Math.PI*.78,close:78,hearDecode:155,hearDash:200,memory:2.05,walkSpeed:175,chaseSpeed:169,searchSpeed:130,patrolSpeed:110,dashCooldown:7};
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v)),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),rand=(a,b)=>a+Math.random()*(b-a);
 const isTouch=()=>matchMedia('(pointer:coarse)').matches || navigator.maxTouchPoints>0 || 'ontouchstart' in window || innerWidth<=820;
 const setTouchCapability=()=>document.documentElement.classList.toggle('touch-capable',isTouch());
@@ -117,7 +119,7 @@ function createWorld(){
  pallets=[{x:570,y:365,used:false,t:0,angle:0.4},{x:954,y:310,used:false,t:0,angle:-.5},{x:1140,y:735,used:false,t:0,angle:1.1},{x:448,y:938,used:false,t:0,angle:0.2},{x:1420,y:780,used:false,t:0,angle:.7}];
  gate={x:1510,y:953,p:0,open:false};
  player={x:125,y:884,r:17,hp:2,inv:0,dir:0,dash:0,dashCD:0,steps:0,noise:0,hidden:false};
- hunter={x:1330,y:100,r:21,dir:0,stun:0,attackCD:0,state:'patrol',last:{x:1330,y:100},memory:0,path:[],pathAt:0,patrol:0,feet:0};
+ hunter={x:1330,y:100,r:21,dir:0,stun:0,attackCD:0,reacquire:0,heardCD:0,alerted:false,noticeAt:-20,state:'patrol',last:{x:1330,y:100},memory:0,path:[],pathAt:0,patrol:0,feet:0};
  particles=[];elapsed=0;shake=0;flash=0;msgUntil=0;wasNearby=false;joy={x:0,y:0,id:null};holdTouch=false;holdKey=false;
  seedDecor();
 }
@@ -150,40 +152,83 @@ if(solved>=3&&!gate.open)opts.push({type:'gate',target:gate,dist:dist(player,gat
 for(const c of ciphers)if(c.p<1)opts.push({type:'cipher',target:c,dist:dist(player,c),limit:91});
 for(const p of pallets)if(!p.used)opts.push({type:'pallet',target:p,dist:dist(player,p),limit:78});
 opts.sort((a,b)=>a.dist-b.dist);return opts.find(a=>a.dist<a.limit)||null}
-function update(dt){elapsed+=dt;player.inv=Math.max(0,player.inv-dt);player.dashCD=Math.max(0,player.dashCD-dt);player.dash=Math.max(0,player.dash-dt);player.noise=Math.max(0,player.noise-dt);hunter.stun=Math.max(0,hunter.stun-dt);hunter.attackCD=Math.max(0,hunter.attackCD-dt);shake=Math.max(0,shake-dt*12);flash=Math.max(0,flash-dt*2);
+function update(dt){elapsed+=dt;player.inv=Math.max(0,player.inv-dt);player.dashCD=Math.max(0,player.dashCD-dt);player.dash=Math.max(0,player.dash-dt);player.noise=Math.max(0,player.noise-dt);hunter.stun=Math.max(0,hunter.stun-dt);hunter.attackCD=Math.max(0,hunter.attackCD-dt);hunter.reacquire=Math.max(0,hunter.reacquire-dt);hunter.heardCD=Math.max(0,hunter.heardCD-dt);shake=Math.max(0,shake-dt*12);flash=Math.max(0,flash-dt*2);
 for(const p of pallets)if(p.t>0)p.t-=dt;
 const vx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0)+joy.x,vy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0)+joy.y;let len=Math.hypot(vx,vy),walking=len>.14;
-if(walking){let ux=vx/Math.max(1,len),uy=vy/Math.max(1,len),spd=player.dash>0?350:162;moveCircle(player,ux*spd*dt,uy*spd*dt);player.dir=Math.atan2(uy,ux);player.steps+=dt*spd/55;if(player.dash>0)player.noise=.45}
+if(walking){let ux=vx/Math.max(1,len),uy=vy/Math.max(1,len),spd=player.dash>0?350:AI.walkSpeed;moveCircle(player,ux*spd*dt,uy*spd*dt);player.dir=Math.atan2(uy,ux);player.steps+=dt*spd/55;if(player.dash>0)player.noise=.45}
 player.hidden=bushes.some(b=>inside(player,b));
 const action=nearestAction(),holding=holdKey||holdTouch;
-if(action&&holding){if(action.type==='pallet'){action.target.used=true;action.target.t=7.5;holdTouch=false;holdKey=false;pushParticle(action.target.x,action.target.y,'#f8dba4',16,100);sound(170,.21,'triangle',.1);hunter.pathAt=0;if(dist(hunter,action.target)<155){hunter.stun=2.8;hunter.path=[];announce('板が当たった！ 追跡者がひるんだ',1.5)}else{announce('板を倒した！ 追跡を妨害',1.3)}}else if(!walking||len<.15){let target=action.target,rate=action.type==='cipher'?1/6.2:1/3.2;target.p=Math.min(1,target.p+dt*rate);if(Math.random()<dt*12)pushParticle(target.x+rand(-15,15),target.y-18,'#a8ece0',1,24);if(Math.floor(elapsed*4)!==Math.floor((elapsed-dt)*4))sound(action.type==='gate'?380:430+target.p*150,.02,'sine',.017);player.noise=.9;
+if(action&&holding){if(action.type==='pallet'){action.target.used=true;action.target.t=7.5;holdTouch=false;holdKey=false;pushParticle(action.target.x,action.target.y,'#f8dba4',16,100);sound(170,.21,'triangle',.1);hunter.pathAt=0;if(dist(hunter,action.target)<155){hunter.stun=2.8;hunter.path=[];announce('板が当たった！ 追跡者がひるんだ',1.5)}else{announce('板を倒した！ 追跡を妨害',1.3)}}else if(!walking||len<.15){let target=action.target,rate=action.type==='cipher'?1/6.2:1/3.2;target.p=Math.min(1,target.p+dt*rate);if(Math.random()<dt*12)pushParticle(target.x+rand(-15,15),target.y-18,'#a8ece0',1,24);if(Math.floor(elapsed*4)!==Math.floor((elapsed-dt)*4))sound(action.type==='gate'?380:430+target.p*150,.02,'sine',.017);player.noise=.35;
 if(target.p>=1){sound(690,.18,'triangle',.06);setTimeout(()=>sound(940,.25,'triangle',.05),90);pushParticle(target.x,target.y,'#93e9cc',25,120);if(action.type==='gate'){gate.open=true;announce('脱出ゲートが開いた！',2);finish(true);return}else{const n=ciphers.filter(c=>c.p>=1).length;if(n>=3)announce('暗号機の解読完了！ 南東のゲートへ',3);else announce(`暗号機を解読した！ あと${3-n}台`,2)}}}}
 updateHunter(dt);
 for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.exp(-2*dt);p.vy*=Math.exp(-2*dt);p.life-=dt}particles=particles.filter(p=>p.life>0);
 if(msgUntil<elapsed)$('banner').classList.remove('show');
 updateHud(action);
 }
-function updateHunter(dt){let d=dist(player,hunter);const hidden=player.hidden&&d>95;let detected=(!hidden&&d<360&&sight(hunter,player))||(player.noise>0&&d<(player.dash>0?500:425));
-if(elapsed<4.5)detected=false;
-if(detected){hunter.state='chase';hunter.last={x:player.x,y:player.y};hunter.memory=4.1}else if(hunter.memory>0){hunter.memory-=dt;hunter.state='search'}else{hunter.state='patrol'}
-if(hunter.stun>0){if(Math.random()<dt*15)pushParticle(hunter.x,hunter.y-31,'#fad783',1,30);return}
-let target;
-if(hunter.state==='chase'||hunter.state==='search')target=hunter.last;
-else{let pts=[{x:1345,y:115},{x:1075,y:730},{x:370,y:270},{x:620,y:728},{x:1450,y:520}];target=pts[hunter.patrol%pts.length];if(dist(hunter,target)<60)hunter.patrol++}
-// Direct chase only if corridor is clear. Otherwise follow an A* route.
-let waypoint=target;if(sight(hunter,target)&&dist(hunter,target)<430){hunter.path=[];waypoint=target}else{hunter.pathAt-=dt;if(hunter.pathAt<=0||!hunter.path.length){hunter.path=pathfind(hunter,target);hunter.pathAt=.4}if(hunter.path.length){if(dist(hunter,hunter.path[0])<27)hunter.path.shift();waypoint=hunter.path[0]||target}}
-let dx=waypoint.x-hunter.x,dy=waypoint.y-hunter.y,dd=Math.hypot(dx,dy);if(dd>1){let spd=hunter.state==='chase'?192:hunter.state==='search'?163:118;let moved=moveCircle(hunter,dx/dd*spd*dt,dy/dd*spd*dt);hunter.dir=Math.atan2(dy,dx);hunter.feet+=moved/41;}
-if(elapsed>4.5&&d<47&&hunter.attackCD<=0&&player.inv<=0){hunter.attackCD=2.8;player.hp--;player.inv=2.1;flash=.9;shake=7;pushParticle(player.x,player.y,'#f39ba5',19,140);sound(100,.31,'sawtooth',.12);if(player.hp<=0){finish(false);return}announce('追跡者に攻撃された！ 残り体力1',2.2);player.dash=Math.max(player.dash,.65);player.noise=.7}
-if(hunter.state==='chase'&&d<260&&elapsed-warningAt>3.3){sound(170,.13,'triangle',.032);warningAt=elapsed}
+function canHunterSee(){
+ const d=dist(player,hunter);
+ // Bushes block normal sight; only a truly close hunter can spot you inside.
+ if(elapsed<4.5||hunter.stun>0||hunter.reacquire>0||d>AI.sight||!sight(hunter,player))return false;
+ if(player.hidden&&d>60)return false;
+ if(d<AI.close)return true;
+ const angle=Math.atan2(player.y-hunter.y,player.x-hunter.x);
+ return Math.cos(angle-hunter.dir)>=Math.cos(AI.fov/2);
+}
+function turnHunterToward(angle,dt){
+ const diff=Math.atan2(Math.sin(angle-hunter.dir),Math.cos(angle-hunter.dir));
+ hunter.dir+=clamp(diff,-3.35*dt,3.35*dt);
+}
+function updateHunter(dt){
+ const d=dist(player,hunter),oldState=hunter.state;
+ const seen=canHunterSee();
+ // Noise only gives a place to investigate, never supernatural wall-penetrating visual lock.
+ const heard=!seen&&elapsed>=4.5&&hunter.reacquire<=0&&player.noise>0&&
+   d<(player.dash>0?AI.hearDash:AI.hearDecode)&&hunter.heardCD<=0;
+ if(seen){
+   hunter.state='chase';hunter.last={x:player.x,y:player.y};hunter.memory=AI.memory;hunter.alerted=true;
+   if(oldState!=='chase'&&elapsed-hunter.noticeAt>3){announce('見つかった！ 壁や板で視線を切ろう',1.7);hunter.noticeAt=elapsed}
+ }else{
+   if(heard){hunter.last={x:player.x,y:player.y};hunter.memory=Math.max(hunter.memory,1.7);hunter.heardCD=1.1;hunter.alerted=true;}
+   hunter.memory=Math.max(0,hunter.memory-dt);
+   hunter.state=hunter.memory>0?'search':'patrol';
+   if(oldState==='chase'&&hunter.state==='search'&&elapsed-hunter.noticeAt>1.6){announce('視線を切った！ 離れて追跡を撒こう',1.8);hunter.noticeAt=elapsed}
+   if(hunter.state==='patrol'&&hunter.alerted){hunter.alerted=false;announce('追跡を撒いた！ 解読を再開しよう',2.1)}
+ }
+ if(hunter.stun>0){if(Math.random()<dt*15)pushParticle(hunter.x,hunter.y-31,'#fad783',1,30);return}
+ let target;
+ if(hunter.state==='chase'||hunter.state==='search')target=hunter.last;
+ else{const pts=[{x:1345,y:115},{x:1075,y:730},{x:370,y:270},{x:620,y:728},{x:1450,y:520}];target=pts[hunter.patrol%pts.length];if(dist(hunter,target)<60)hunter.patrol++}
+ // Investigate the last sighting, then give up. No live player position in search state.
+ if(hunter.state==='search'&&dist(hunter,target)<60)hunter.memory=Math.min(hunter.memory,.55);
+ let waypoint=target;
+ if(sight(hunter,target)&&dist(hunter,target)<430){hunter.path=[];waypoint=target}
+ else{hunter.pathAt-=dt;if(hunter.pathAt<=0||!hunter.path.length){hunter.path=pathfind(hunter,target);hunter.pathAt=.4}if(hunter.path.length){if(dist(hunter,hunter.path[0])<27)hunter.path.shift();waypoint=hunter.path[0]||target}}
+ const dx=waypoint.x-hunter.x,dy=waypoint.y-hunter.y,dd=Math.hypot(dx,dy);
+ if(dd>1){
+   const spd=hunter.state==='chase'?AI.chaseSpeed:hunter.state==='search'?AI.searchSpeed:AI.patrolSpeed;
+   const moved=moveCircle(hunter,dx/dd*spd*dt,dy/dd*spd*dt);
+   turnHunterToward(Math.atan2(dy,dx),dt);hunter.feet+=moved/41;
+ }
+ if(elapsed>4.5&&dist(player,hunter)<47&&hunter.attackCD<=0&&player.inv<=0){
+   hunter.attackCD=2.8;player.hp--;player.inv=3.8;flash=.9;shake=7;
+   pushParticle(player.x,player.y,'#f39ba5',19,140);sound(100,.31,'sawtooth',.12);
+   if(player.hp<=0){finish(false);return}
+   // Solo recovery: on hit, the hunter recoils and temporarily loses the lock.
+   hunter.stun=1.3;hunter.reacquire=2.0;hunter.heardCD=2;hunter.memory=1.7;
+   hunter.state='search';hunter.last={x:player.x,y:player.y};hunter.path=[];
+   player.dash=Math.max(player.dash,1.35);player.dashCD=Math.min(player.dashCD,3.5);player.noise=0;
+   announce('攻撃された！ 加速中、今なら逃げられる！',2.2);
+ }
+ if(hunter.state==='chase'&&d<260&&elapsed-warningAt>3.3){sound(170,.13,'triangle',.032);warningAt=elapsed}
 }
 function updateHud(action){const done=ciphers.filter(c=>c.p>=1).length;
 $('objectiveText').textContent=done<3?`暗号機を解読 ${done} / 3`:'南東の脱出ゲートへ向かえ！';[...$('meters').children].forEach((i,idx)=>i.classList.toggle('done',idx<done));
-$('hearts').textContent=player.hp===2?'♥ ♥':player.hp===1?'♥ ♡':'♡ ♡';let near=dist(player,hunter);$('dangerLabel').textContent=hunter.stun>0?'追跡者がひるんでいる':near<240?'⚠ 追跡者がすぐ近く':player.hidden?'草むらに潜伏中':'霧の中を探索中';$('dangerLabel').style.color=near<240?'#f3a5af':'#b5c0c9';
-$('abilityText').textContent=player.dashCD<=0?'準備完了':`${player.dashCD.toFixed(1)}秒`;$('abilityBar').style.width=`${100*(1-player.dashCD/10)}%`;dashBtn.disabled=player.dashCD>0;dashBtn.style.opacity=player.dashCD>0?'.5':'1';
+$('hearts').textContent=player.hp===2?'♥ ♥':player.hp===1?'♥ ♡':'♡ ♡';let near=dist(player,hunter);$('dangerLabel').textContent=hunter.stun>0?'追跡者がひるんでいる':hunter.state==='chase'?'⚠ 見つかった！':hunter.state==='search'?'追跡者が捜索中':player.hidden?'草むらに潜伏中':near<200?'追跡者が近くにいる':'霧の中を探索中';$('dangerLabel').style.color=hunter.state==='chase'?'#f3a5af':'#b5c0c9';
+$('abilityText').textContent=player.dashCD<=0?'準備完了':`${player.dashCD.toFixed(1)}秒`;$('abilityBar').style.width=`${100*(1-player.dashCD/AI.dashCooldown)}%`;dashBtn.disabled=player.dashCD>0;dashBtn.style.opacity=player.dashCD>0?'.5':'1';
 $('timer').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(Math.floor(elapsed%60)).padStart(2,'0')}`;
 $('context').style.opacity=action?'1':'0';if(action){let t=action.type,txt=t==='cipher'?'暗号機を解読する':t==='gate'?'ゲートを開放する':'板を倒して妨害する';$('contextText').textContent=txt;$('context').querySelector('.keycap').textContent=isTouch()?'✦':'E';$('touchActionText').textContent=t==='pallet'?'倒す':t==='gate'?'開門':'解読';$('actionProgress').style.opacity=t==='pallet'?'0':'1';$('actionProgressBar').style.width=`${Math.round((action.target.p||0)*100)}%`;}else{$('touchActionText').textContent='調べる';$('actionProgress').style.opacity='0'}
 }
-function dash(){if(mode!=='playing'||player.dashCD>0)return;player.dash=1.1;player.dashCD=10;player.noise=1.4;pushParticle(player.x,player.y,'#f5d08a',12,65);sound(290,.16,'triangle',.065)}
+function dash(){if(mode!=='playing'||player.dashCD>0)return;player.dash=1.1;player.dashCD=AI.dashCooldown;player.noise=1.0;pushParticle(player.x,player.y,'#f5d08a',12,65);sound(290,.16,'triangle',.065)}
 const rawKey=e=>e.key.toLowerCase();addEventListener('keydown',e=>{let k=rawKey(e);if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();if(k==='escape'){pause();return}if(mode!=='playing')return;if(k==='shift'&&!e.repeat)dash();if(k==='e'||k===' '){holdKey=true}keys.add(k)});addEventListener('keyup',e=>{let k=rawKey(e);keys.delete(k);if(k==='e'||k===' ')holdKey=false});addEventListener('blur',()=>{if(typeof resetInputs==='function')resetInputs()});
 const stick=$('stickBase'),nub=$('stickNub'),moveArea=$('moveArea');
 let touchMoveId=null,actionTouchId=null;
@@ -222,6 +267,25 @@ ctx.fillStyle='#17282e';ctx.fillRect(0,0,W,H);
 ctx.fillStyle='#24353a';roundRect(32,32,W-64,H-64,23,'#203038','#677c7750');
 ctx.save();ctx.strokeStyle='#b3c8be07';ctx.lineWidth=1;for(let x=40;x<W-40;x+=40){ctx.beginPath();ctx.moveTo(x,40);ctx.lineTo(x,H-40);ctx.stroke()}for(let y=40;y<H-40;y+=40){ctx.beginPath();ctx.moveTo(40,y);ctx.lineTo(W-40,y);ctx.stroke()}ctx.restore();
 for(const d of decor){ctx.fillStyle=d.kind<3?`rgba(114,155,132,${d.alpha})`:`rgba(181,197,165,${d.alpha*.48})`;ctx.beginPath();ctx.ellipse(d.x,d.y,d.size,d.size*.36,Math.sin(d.x)*2,0,TAU);ctx.fill()}
+// Ground-level sight fan. Rays stop at walls, matching line-of-sight detection.
+if(mode==='playing'){
+ ctx.save();ctx.beginPath();ctx.moveTo(hunter.x,hunter.y);
+ for(let i=0;i<=24;i++){
+   const angle=hunter.dir-AI.fov/2+AI.fov*i/24,dx=Math.cos(angle),dy=Math.sin(angle);
+   let limit=AI.sight;
+   for(const r of obstacles){
+     let entry=0,exit=limit;
+     if(Math.abs(dx)<.000001){if(hunter.x<r.x||hunter.x>r.x+r.w)continue}
+     else{const a=(r.x-hunter.x)/dx,b=(r.x+r.w-hunter.x)/dx;entry=Math.max(entry,Math.min(a,b));exit=Math.min(exit,Math.max(a,b))}
+     if(Math.abs(dy)<.000001){if(hunter.y<r.y||hunter.y>r.y+r.h)continue}
+     else{const a=(r.y-hunter.y)/dy,b=(r.y+r.h-hunter.y)/dy;entry=Math.max(entry,Math.min(a,b));exit=Math.min(exit,Math.max(a,b))}
+     if(exit>=entry)limit=Math.min(limit,Math.max(0,entry));
+   }
+   ctx.lineTo(hunter.x+dx*limit,hunter.y+dy*limit);
+ }
+ ctx.closePath();ctx.fillStyle=hunter.state==='chase'?'#fa657527':'#e8a78919';ctx.fill();
+ ctx.beginPath();ctx.arc(hunter.x,hunter.y,AI.close,0,TAU);ctx.fillStyle='#e8a7890d';ctx.fill();ctx.restore();
+}
 // ruined walls
 for(const r of obstacles){roundRect(r.x+5,r.y+9,r.w,r.h,9,'#080f1a6e');roundRect(r.x,r.y,r.w,r.h,8,'#566263','#818b8499');roundRect(r.x+8,r.y+7,r.w-16,r.h-15,4,'#4a5659','#82938e66');ctx.strokeStyle='#94a6a04a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(r.x+16,r.y+r.h*.5);ctx.lineTo(r.x+r.w*.64,r.y+r.h*.51);ctx.lineTo(r.x+r.w*.72,r.y+r.h-9);ctx.stroke();ctx.strokeStyle='#232f31';ctx.beginPath();ctx.moveTo(r.x+r.w*.26,r.y+10);ctx.lineTo(r.x+r.w*.32,r.y+26);ctx.stroke()}
 // tall grass, darker underside and translucent fronds
