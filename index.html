@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#101521">
-<title>夜霧の脱出 v0.3 | オリジナル追跡ゲーム</title>
+<title>夜霧の脱出 v0.4 | オリジナル追跡ゲーム</title>
 <style>
 :root{--paper:#f6f0df;--muted:#b5c0c9;--gold:#f1c478;--aqua:#9fe3d3;--danger:#f390a2;--glass:rgba(12,18,29,.78)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -41,14 +41,25 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#09101b;col
 #mobileControls{position:fixed;inset:0;z-index:5;display:none;pointer-events:none;user-select:none;-webkit-user-select:none}
 #moveArea{position:absolute;left:0;bottom:0;width:54%;height:59%;pointer-events:auto;touch-action:none;overscroll-behavior:contain}
 #mobileControls.visible.touch-ready{display:block}
+#mobileControls.aiming #moveArea{pointer-events:none}
+#mobileControls.aiming #stickBase{pointer-events:none}
 html.touch-capable #mobileControls.visible{display:block}
 #stickBase{position:absolute;width:132px;height:132px;bottom:calc(45px + env(safe-area-inset-bottom));left:23px;border-radius:50%;border:2px solid rgba(200,236,231,.31);background:radial-gradient(circle,rgba(109,161,161,.18),rgba(15,35,42,.37));box-shadow:0 0 30px #07141c33;pointer-events:auto;touch-action:none}
 #stickNub{position:absolute;width:56px;height:56px;left:36px;top:36px;border-radius:50%;border:1px solid rgba(236,253,243,.68);background:rgba(172,223,215,.30);box-shadow:0 2px 13px #07101955;pointer-events:none;transform:translate(0,0)}
-#touchButtons{position:absolute;right:18px;bottom:calc(43px + env(safe-area-inset-bottom));display:flex;gap:11px;align-items:flex-end;pointer-events:auto}
+#touchButtons{position:absolute;right:13px;bottom:calc(34px + env(safe-area-inset-bottom));display:grid;grid-template-columns:60px 83px;grid-template-rows:60px 83px;gap:7px;align-items:center;justify-items:center;pointer-events:auto}
 .touchBtn{border:1px solid #d9e7e450;color:#f9f6ed;background:rgba(22,35,48,.83);box-shadow:0 8px 25px #030a0d66;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;touch-action:none;font-weight:800;font-size:12px;letter-spacing:.5px;text-shadow:0 1px 5px #000}
 .touchBtn{padding:0;white-space:nowrap}.touchBtn .symbol{font-size:23px;line-height:1.2}
 #touchAction{width:88px;height:88px;background:rgba(32,76,78,.89);border-color:rgba(172,230,212,.56)}
-#touchDash{width:66px;height:66px;margin-bottom:10px;border-color:#edc47b88}
+#touchDash{grid-column:1;grid-row:2;width:60px;height:60px;border-color:#edc47b88}
+#touchAction{grid-column:2;grid-row:2}
+#touchRock{grid-column:2;grid-row:1;width:58px;height:58px;border-color:#e7d8ac9a}
+#touchCrouch{grid-column:1;grid-row:1;width:58px;height:58px;border-color:#9cd9c1a0}
+#touchRock.selected,#touchCrouch.selected{background:#427368e8;border-color:#b9f3d8}
+#toolStatus{font-size:10px;color:#d8ddd9;margin-top:7px;font-weight:700;letter-spacing:.1px}
+#aimPrompt{position:fixed;top:52%;left:50%;transform:translate(-50%,-50%);padding:12px 17px;border:1px solid #c7dca999;border-radius:14px;background:#071824dc;z-index:4;pointer-events:none;font-size:13px;font-weight:800;text-align:center;display:none;max-width:80vw}
+#aimPrompt.show{display:block}
+@media(max-width:370px){#touchButtons{grid-template-columns:53px 74px;grid-template-rows:54px 73px;gap:5px}#touchRock,#touchCrouch{width:52px;height:52px}#touchAction{width:74px;height:74px}#touchDash{width:54px;height:54px}}
+@media(max-height:520px){#touchButtons{grid-template-columns:53px 74px;grid-template-rows:50px 70px;gap:4px;right:10px}#touchRock,#touchCrouch{width:48px;height:48px}}
 .touchBtn.down{transform:scale(.96);filter:brightness(1.45)}
 #touchDash:disabled{opacity:.4}
 #screens{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(26,47,57,.48),rgba(5,9,16,.89) 70%);padding:22px;overflow-y:auto;touch-action:pan-y}
@@ -69,24 +80,25 @@ h1{font-size:clamp(37px,10vw,69px);letter-spacing:5px;line-height:1.1;font-weigh
 .stat span{font-size:11px;color:#b6c6c7}
 #pauseBtn{position:fixed;z-index:6;top:calc(17px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:none;border:1px solid #e9eee644;border-radius:50%;width:39px;height:39px;color:#e6f1ed;background:#15222b99;font-size:18px;cursor:pointer;touch-action:manipulation}
 #pauseBtn.show{display:block}
-@media(pointer:coarse), (max-width:820px){#mobileControls.visible{display:block}#context{bottom:calc(165px + env(safe-area-inset-bottom));width:min(300px,80vw)}#ability,#timer,#tutorialHint{display:none}.objective{min-width:0;width:204px;padding:9px 10px}.objective .line{font-size:12px}.health{min-width:99px;padding:10px}.health .hearts{font-size:19px}.topline{left:11px;right:11px;gap:5px}#pauseBtn{top:calc(79px + env(safe-area-inset-top));left:auto;right:14px;transform:none}#banner{top:calc(117px + env(safe-area-inset-top));font-size:12px}}
-@media(max-width:420px){h1{letter-spacing:2px}.eyebrow{letter-spacing:2px}.ruleBox{padding:13px 15px;font-size:12px}.subtitle{font-size:12px}#stickBase{left:14px;bottom:calc(27px + env(safe-area-inset-bottom));width:118px;height:118px}#stickNub{left:31px;top:31px;width:52px;height:52px}#touchButtons{right:12px;bottom:calc(26px + env(safe-area-inset-bottom));gap:8px}#touchAction{width:83px;height:83px}#touchDash{width:61px;height:61px;font-size:10px;letter-spacing:0}}
-@media (max-height:520px){#stickBase{bottom:calc(9px + env(safe-area-inset-bottom));width:108px;height:108px;left:24px}#stickNub{width:48px;height:48px;left:28px;top:28px}#touchButtons{bottom:calc(8px + env(safe-area-inset-bottom))}#touchAction{width:76px;height:76px}#touchDash{width:60px;height:60px;margin-bottom:8px}.topline{top:calc(5px + env(safe-area-inset-top))}#context{bottom:calc(105px + env(safe-area-inset-bottom));font-size:11px}}
+@media(pointer:coarse), (max-width:820px){#mobileControls.visible{display:block}#context{bottom:calc(201px + env(safe-area-inset-bottom));width:min(280px,75vw)}#ability,#timer,#tutorialHint{display:none}.objective{min-width:0;width:204px;padding:9px 10px}.objective .line{font-size:12px}.health{min-width:99px;padding:10px}.health .hearts{font-size:19px}.topline{left:11px;right:11px;gap:5px}#pauseBtn{top:calc(79px + env(safe-area-inset-top));left:auto;right:14px;transform:none}#banner{top:calc(117px + env(safe-area-inset-top));font-size:12px}}
+@media(max-width:420px){h1{letter-spacing:2px}.eyebrow{letter-spacing:2px}.ruleBox{padding:13px 15px;font-size:12px}.subtitle{font-size:12px}#stickBase{left:14px;bottom:calc(27px + env(safe-area-inset-bottom));width:118px;height:118px}#stickNub{left:31px;top:31px;width:52px;height:52px}#touchButtons{right:12px;bottom:calc(18px + env(safe-area-inset-bottom));gap:5px}#touchAction{width:83px;height:83px}#touchDash{width:58px;height:58px;font-size:10px;letter-spacing:0}}
+@media (max-height:520px){#stickBase{bottom:calc(9px + env(safe-area-inset-bottom));width:108px;height:108px;left:24px}#stickNub{width:48px;height:48px;left:28px;top:28px}#touchButtons{bottom:calc(8px + env(safe-area-inset-bottom))}#touchAction{width:76px;height:76px}#touchDash{width:55px;height:55px;margin-bottom:0}.topline{top:calc(5px + env(safe-area-inset-top))}#context{bottom:calc(141px + env(safe-area-inset-bottom));font-size:11px}}
 </style>
 </head>
 <body>
 <canvas id="game" aria-label="夜霧の脱出 ゲーム画面"></canvas>
 <div id="vignette"></div>
 <div id="hud">
- <div class="topline"><div class="objective card"><div class="smallcap">MISSION // ESCAPE</div><div class="line" id="objectiveText">暗号機を解読して脱出せよ</div><div class="meters" id="meters"><i></i><i></i><i></i></div></div><div class="health card"><div id="hearts" class="hearts">♥ ♥</div><div class="label" id="dangerLabel">霧の中を探索中</div></div></div>
+ <div class="topline"><div class="objective card"><div class="smallcap">MISSION // ESCAPE</div><div class="line" id="objectiveText">暗号機を解読して脱出せよ</div><div class="meters" id="meters"><i></i><i></i><i></i></div><div id="toolStatus">石 ×2　·　立ち歩き</div></div><div class="health card"><div id="hearts" class="hearts">♥ ♥</div><div class="label" id="dangerLabel">霧の中を探索中</div></div></div>
  <div id="banner"></div><div id="context"><div><span class="keycap">E</span><span class="text" id="contextText">暗号機を解読する</span></div><div id="actionProgress"><span id="actionProgressBar"></span></div></div>
  <div id="ability" class="card"><b>SHIFT</b> ダッシュ <span id="abilityText">準備完了</span><div class="cool"><span id="abilityBar"></span></div></div>
- <div id="timer" class="card">00:00</div><div id="tutorialHint">移動 WASD / 矢印 · 解読 E長押し · ダッシュ Shift · 一時停止 Esc</div>
+ <div id="timer" class="card">00:00</div><div id="tutorialHint">移動 WASD · 解読 E · ダッシュ Shift · しゃがみ C · 石 R→クリック · Esc</div>
 </div>
-<div id="mobileControls"><div id="moveArea" aria-label="左側をタッチして移動"><div id="stickBase"><div id="stickNub"></div></div></div><div id="touchButtons"><button id="touchDash" class="touchBtn" aria-label="ダッシュ"><span class="symbol">➜</span><span>ダッシュ</span></button><button id="touchAction" class="touchBtn" aria-label="アクション"><span class="symbol">✦</span><span id="touchActionText">調べる</span></button></div></div>
+<div id="mobileControls"><div id="moveArea" aria-label="左側をタッチして移動"><div id="stickBase"><div id="stickNub"></div></div></div><div id="touchButtons"><button id="touchCrouch" class="touchBtn" aria-label="しゃがみ切り替え"><span class="symbol">⌄</span><span>しゃがむ</span></button><button id="touchRock" class="touchBtn" aria-label="石を投げる"><span class="symbol">◌</span><span id="rockBtnText">石 ×2</span></button><button id="touchDash" class="touchBtn" aria-label="ダッシュ"><span class="symbol">➜</span><span>ダッシュ</span></button><button id="touchAction" class="touchBtn" aria-label="アクション"><span class="symbol">✦</span><span id="touchActionText">調べる</span></button></div></div>
+<div id="aimPrompt">石を落とす場所をタップ<br><small>石ボタンでもキャンセルできます</small></div>
 <button id="pauseBtn" aria-label="一時停止">Ⅱ</button>
 <div id="screens">
- <div class="screen" id="menuScreen"><div class="eyebrow">ASYMMETRIC CHASE / SOLO DEMO</div><h1>夜霧の脱出</h1><p class="subtitle">見つかるな。修復せよ。生きて門をくぐれ。<br>追跡者が徘徊する廃墟で、君は一人で脱出できるか。</p><div class="ruleBox"><p>✧ <b>暗号機を3台</b> 解読して脱出ゲートを開ける</p><p>✧ 追跡者に <b>2回捕まると敗北</b></p><p>✧ <b>板を倒す</b> と追跡者を足止めできる</p><p>✧ <b>赤い扇形がハンターの視界</b>。背後や壁の裏なら見つかりにくい</p><p>✧ <b>角を曲がる・草むらに隠れる</b>と追跡を撒ける。音には気をつけて</p><p>✧ PC：WASD＋E長押し＋Shift ／ スマホ：左画面をタッチして移動・右ボタンで操作</p></div><button class="primary" id="startBtn">探索を開始する　→</button><div class="footnote">ひとり用BOT対戦の試作版。オリジナル作品です。<br>音を使うため、必要に応じて端末の音量を上げてください。</div></div>
+ <div class="screen" id="menuScreen"><div class="eyebrow">STEALTH / DISTRACTION / SOLO DEMO</div><h1>夜霧の脱出</h1><p class="subtitle">見つかるな。修復せよ。生きて門をくぐれ。<br>追跡者が徘徊する廃墟で、君は一人で脱出できるか。</p><div class="ruleBox"><p>✧ <b>暗号機を3台</b> 解読して脱出ゲートを開ける</p><p>✧ 追跡者に <b>2回捕まると敗北</b></p><p>✧ <b>石投げで陽動</b>。音の場所へハンターを誘える（2個）</p><p>✧ <b>赤い扇形がハンターの視界</b>。背後や壁の裏なら見つかりにくい</p><p>✧ <b>しゃがんで静かに移動</b>。視線を切って草むらに隠れよう</p><p>✧ <b>板</b>は当てれば気絶、外しても障害物になる<br>✧ PC：WASD / E長押し / Shift / C / R→クリック ／ スマホ：左スティック＋右の4ボタン</p></div><button class="primary" id="startBtn">探索を開始する　→</button><div class="footnote">ひとり用BOT対戦の試作版。オリジナル作品です。<br>音を使うため、必要に応じて端末の音量を上げてください。</div></div>
  <div class="screen" id="resultScreen" style="display:none"><div class="eyebrow" id="resultTag">RESULT</div><h1 id="resultTitle">脱出成功</h1><p class="subtitle" id="resultSubtitle">夜霧の向こうに道が開けた。</p><div id="resultStat"></div><button class="primary" id="restartBtn">もう一度プレイ　→</button><div class="footnote">スタート画面に戻るには画面を更新してください。</div></div>
  <div class="screen" id="pauseScreen" style="display:none"><div class="eyebrow">PAUSED</div><h1>一時停止</h1><p class="subtitle">霧の中で時間が止まっている。</p><button class="primary" id="resumeBtn">ゲームに戻る　→</button><div class="footnote">Escキーでも再開できます。</div></div>
 </div>
@@ -94,16 +106,17 @@ h1{font-size:clamp(37px,10vw,69px);letter-spacing:5px;line-height:1.1;font-weigh
 (()=>{'use strict';
 const cvs=document.getElementById('game'),ctx=cvs.getContext('2d',{alpha:false});
 const $=id=>document.getElementById(id);
-const hud=$('hud'),mobile=$('mobileControls'),screens=$('screens'),actionBtn=$('touchAction'),dashBtn=$('touchDash');
+const hud=$('hud'),mobile=$('mobileControls'),screens=$('screens'),actionBtn=$('touchAction'),dashBtn=$('touchDash'),crouchBtn=$('touchCrouch'),rockBtn=$('touchRock');
 const W=1600,H=1050,TAU=Math.PI*2;
-// SOLO BALANCE v0.3: local perception, readable vision cone, and escapable chases.
-const AI={sight:275,fov:Math.PI*.78,close:78,hearDecode:155,hearDash:200,memory:2.05,walkSpeed:175,chaseSpeed:169,searchSpeed:130,patrolSpeed:110,dashCooldown:7};
+// v0.4 STEALTH: perception, distraction and chase are separate information states.
+const AI={sight:300,fov:Math.PI*5/6,close:60,walkSpeed:175,crouchSpeed:105,chaseSpeed:198,searchSpeed:150,investigateSpeed:145,patrolSpeed:120,dashSpeed:330,dashCooldown:9,searchDuration:6,rockRange:300};
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v)),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),rand=(a,b)=>a+Math.random()*(b-a);
 const isTouch=()=>matchMedia('(pointer:coarse)').matches || navigator.maxTouchPoints>0 || 'ontouchstart' in window || innerWidth<=820;
 const setTouchCapability=()=>document.documentElement.classList.toggle('touch-capable',isTouch());
 let view={w:innerWidth,h:innerHeight,dpr:1,zoom:1,cx:W/2,cy:H/2},mode='menu',elapsed=0,shake=0,flash=0,warningAt=-10,msgUntil=0,msg='';
 const keys=new Set();let joy={x:0,y:0,id:null},holdTouch=false,holdKey=false,last=performance.now();
-let player,hunter,ciphers,pallets,gate,particles,decor,bushes,obstacles,wasNearby=false;
+let player,hunter,ciphers,pallets,gate,particles,decor,bushes,obstacles,rockPiles,noiseEvents=[],wasNearby=false;
+let aiming=false,aimPoint=null,noiseSeq=0,stepNoiseTimer=0,decodeNoiseTimer=0;
 let audio=null,soundOn=true;
 function sound(freq=380,duration=.09,type='sine',gain=.055){if(!soundOn||!audio)return;try{const o=audio.createOscillator(),g=audio.createGain();o.type=type;o.frequency.setValueAtTime(freq,audio.currentTime);g.gain.setValueAtTime(gain,audio.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+duration);o.connect(g);g.connect(audio.destination);o.start();o.stop(audio.currentTime+duration+.005)}catch(_){}}
 function initAudio(){try{audio=audio||new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume()}catch(_){soundOn=false}}
@@ -118,16 +131,17 @@ function createWorld(){
  ciphers=[{x:385,y:265,p:0},{x:865,y:395,p:0},{x:1280,y:495,p:0},{x:590,y:725,p:0},{x:1440,y:185,p:0}];
  pallets=[{x:570,y:365,used:false,t:0,angle:0.4},{x:954,y:310,used:false,t:0,angle:-.5},{x:1140,y:735,used:false,t:0,angle:1.1},{x:448,y:938,used:false,t:0,angle:0.2},{x:1420,y:780,used:false,t:0,angle:.7}];
  gate={x:1510,y:953,p:0,open:false};
- player={x:125,y:884,r:17,hp:2,inv:0,dir:0,dash:0,dashCD:0,steps:0,noise:0,hidden:false};
- hunter={x:1330,y:100,r:21,dir:0,stun:0,attackCD:0,reacquire:0,heardCD:0,alerted:false,noticeAt:-20,state:'patrol',last:{x:1330,y:100},memory:0,path:[],pathAt:0,patrol:0,feet:0};
+ rockPiles=[{x:310,y:670,left:1},{x:995,y:705,left:1}];noiseEvents=[];noiseSeq=0;stepNoiseTimer=0;decodeNoiseTimer=0;aiming=false;aimPoint=null;
+ player={x:125,y:884,r:17,hp:2,inv:0,dir:0,dash:0,dashCD:0,steps:0,noise:0,hidden:false,crouched:false,rocks:2};
+ hunter={x:1330,y:100,r:21,dir:0,stun:0,attackCD:0,reacquire:0,alerted:false,noticeAt:-20,state:'patrol',last:{x:1330,y:100},lastSeen:0,lastHeard:null,noiseId:0,investigateUntil:0,searchUntil:0,searchPoints:[],searchIndex:0,path:[],pathAt:0,patrol:0,feet:0};
  particles=[];elapsed=0;shake=0;flash=0;msgUntil=0;wasNearby=false;joy={x:0,y:0,id:null};holdTouch=false;holdKey=false;
  seedDecor();
 }
 function resize(){setTouchCapability();view.w=innerWidth;view.h=innerHeight;view.dpr=Math.min(devicePixelRatio||1,2);cvs.width=Math.round(view.w*view.dpr);cvs.height=Math.round(view.h*view.dpr);view.zoom=isTouch()?clamp(view.w/455,.67,.99):clamp(view.w/1130,.86,1.15)}
 addEventListener('resize',resize,{passive:true});resize();createWorld();
 function start(){initAudio();createWorld();resetInputs();mode='playing';screens.style.display='none';hud.classList.add('visible');$('pauseBtn').classList.add('show');mobile.classList.toggle('visible',isTouch());$('menuScreen').style.display='none';$('resultScreen').style.display='none';$('pauseScreen').style.display='none';announce('3台の暗号機を解読して脱出しよう',3.3);sound(540,.14);last=performance.now()}
-function showScreen(name){resetInputs();screens.style.display='flex';$('menuScreen').style.display=name==='menu'?'block':'none';$('resultScreen').style.display=name==='result'?'block':'none';$('pauseScreen').style.display=name==='pause'?'block':'none';hud.classList.toggle('visible',name==='pause');mobile.classList.remove('visible');$('pauseBtn').classList.remove('show')}
-function pause(){if(mode==='playing'){mode='paused';showScreen('pause')}else if(mode==='paused'){resetInputs();mode='playing';screens.style.display='none';hud.classList.add('visible');mobile.classList.toggle('visible',isTouch());$('pauseBtn').classList.add('show');last=performance.now()}}
+function showScreen(name){resetInputs();cancelAim();screens.style.display='flex';$('menuScreen').style.display=name==='menu'?'block':'none';$('resultScreen').style.display=name==='result'?'block':'none';$('pauseScreen').style.display=name==='pause'?'block':'none';hud.classList.toggle('visible',name==='pause');mobile.classList.remove('visible');$('pauseBtn').classList.remove('show')}
+function pause(){if(mode==='playing'){cancelAim();mode='paused';showScreen('pause')}else if(mode==='paused'){resetInputs();mode='playing';screens.style.display='none';hud.classList.add('visible');mobile.classList.toggle('visible',isTouch());$('pauseBtn').classList.add('show');last=performance.now()}}
 function finish(win){mode='ended';showScreen('result');$('resultTag').textContent=win?'SUCCESS / ESCAPED':'FAILED / CAUGHT';$('resultTag').style.color=win?'#9fe3d3':'#f390a2';$('resultTitle').textContent=win?'脱出成功':'捕まってしまった';$('resultSubtitle').textContent=win?'霧の外には、まだ夜明け前の空が広がっていた。':'追跡者の足音は、もう背後にあった。';let n=ciphers.filter(c=>c.p>=1).length;
 $('resultStat').innerHTML=`<div class="stat"><strong>${n} / 3</strong><span>暗号機</span></div><div class="stat"><strong>${Math.floor(elapsed/60).toString().padStart(2,'0')}:${Math.floor(elapsed%60).toString().padStart(2,'0')}</strong><span>経過時間</span></div><div class="stat"><strong>${player.hp}/2</strong><span>体力</span></div>`;if(win){sound(660,.26);setTimeout(()=>sound(900,.45),120)}else{sound(120,.6,'sawtooth',.04)}}
 function announce(text,time=2.1){msg=text;msgUntil=elapsed+time;$('banner').textContent=text;$('banner').classList.add('show')}
@@ -151,88 +165,193 @@ function nearestAction(){const solved=ciphers.filter(c=>c.p>=1).length;let opts=
 if(solved>=3&&!gate.open)opts.push({type:'gate',target:gate,dist:dist(player,gate),limit:99});
 for(const c of ciphers)if(c.p<1)opts.push({type:'cipher',target:c,dist:dist(player,c),limit:91});
 for(const p of pallets)if(!p.used)opts.push({type:'pallet',target:p,dist:dist(player,p),limit:78});
+ for(const p of rockPiles)if(p.left>0&&player.rocks<2)opts.push({type:'rock',target:p,dist:dist(player,p),limit:78});
 opts.sort((a,b)=>a.dist-b.dist);return opts.find(a=>a.dist<a.limit)||null}
-function update(dt){elapsed+=dt;player.inv=Math.max(0,player.inv-dt);player.dashCD=Math.max(0,player.dashCD-dt);player.dash=Math.max(0,player.dash-dt);player.noise=Math.max(0,player.noise-dt);hunter.stun=Math.max(0,hunter.stun-dt);hunter.attackCD=Math.max(0,hunter.attackCD-dt);hunter.reacquire=Math.max(0,hunter.reacquire-dt);hunter.heardCD=Math.max(0,hunter.heardCD-dt);shake=Math.max(0,shake-dt*12);flash=Math.max(0,flash-dt*2);
-for(const p of pallets)if(p.t>0)p.t-=dt;
-const vx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0)+joy.x,vy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0)+joy.y;let len=Math.hypot(vx,vy),walking=len>.14;
-if(walking){let ux=vx/Math.max(1,len),uy=vy/Math.max(1,len),spd=player.dash>0?350:AI.walkSpeed;moveCircle(player,ux*spd*dt,uy*spd*dt);player.dir=Math.atan2(uy,ux);player.steps+=dt*spd/55;if(player.dash>0)player.noise=.45}
-player.hidden=bushes.some(b=>inside(player,b));
-const action=nearestAction(),holding=holdKey||holdTouch;
-if(action&&holding){if(action.type==='pallet'){action.target.used=true;action.target.t=7.5;holdTouch=false;holdKey=false;pushParticle(action.target.x,action.target.y,'#f8dba4',16,100);sound(170,.21,'triangle',.1);hunter.pathAt=0;if(dist(hunter,action.target)<155){hunter.stun=2.8;hunter.path=[];announce('板が当たった！ 追跡者がひるんだ',1.5)}else{announce('板を倒した！ 追跡を妨害',1.3)}}else if(!walking||len<.15){let target=action.target,rate=action.type==='cipher'?1/6.2:1/3.2;target.p=Math.min(1,target.p+dt*rate);if(Math.random()<dt*12)pushParticle(target.x+rand(-15,15),target.y-18,'#a8ece0',1,24);if(Math.floor(elapsed*4)!==Math.floor((elapsed-dt)*4))sound(action.type==='gate'?380:430+target.p*150,.02,'sine',.017);player.noise=.35;
-if(target.p>=1){sound(690,.18,'triangle',.06);setTimeout(()=>sound(940,.25,'triangle',.05),90);pushParticle(target.x,target.y,'#93e9cc',25,120);if(action.type==='gate'){gate.open=true;announce('脱出ゲートが開いた！',2);finish(true);return}else{const n=ciphers.filter(c=>c.p>=1).length;if(n>=3)announce('暗号機の解読完了！ 南東のゲートへ',3);else announce(`暗号機を解読した！ あと${3-n}台`,2)}}}}
-updateHunter(dt);
-for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.exp(-2*dt);p.vy*=Math.exp(-2*dt);p.life-=dt}particles=particles.filter(p=>p.life>0);
-if(msgUntil<elapsed)$('banner').classList.remove('show');
-updateHud(action);
+// SOUND = immutable *event location*, never the moving player's true coordinate.
+function emitNoise(x,y,radius,kind){noiseEvents.push({id:++noiseSeq,x,y,radius,kind,at:elapsed});if(noiseEvents.length>35)noiseEvents.shift()}
+function buildSearchPoints(origin){
+ // Search known location and nearby sightlines. The current player position is never an input.
+ const points=[{x:origin.x,y:origin.y}];const dirs=[0,Math.PI/2,Math.PI,Math.PI*1.5];
+ const phase=Math.floor(origin.x*0.13+origin.y*0.17)%4;
+ for(let j=0;j<3;j++){const ang=dirs[(j+phase)%4],r=95+(j%2)*45;let p={x:clamp(origin.x+Math.cos(ang)*r,70,W-70),y:clamp(origin.y+Math.sin(ang)*r,70,H-70)};
+   if(!obstacles.some(w=>inside(p,w)))points.push(p)}
+ return points;
+}
+function setHunterState(next){hunter.state=next;hunter.path=[];hunter.pathAt=0}
+function enterSearch(location){
+ hunter.last={x:location.x,y:location.y};hunter.searchPoints=buildSearchPoints(hunter.last);hunter.searchIndex=0;
+ hunter.searchUntil=elapsed+AI.searchDuration;setHunterState('search');
+}
+function enterInvestigation(soundEvent){
+ hunter.lastHeard={x:soundEvent.x,y:soundEvent.y,id:soundEvent.id,kind:soundEvent.kind};
+ hunter.noiseId=soundEvent.id;hunter.investigateUntil=elapsed+5.8;
+ setHunterState('investigate');
 }
 function canHunterSee(){
  const d=dist(player,hunter);
- // Bushes block normal sight; only a truly close hunter can spot you inside.
- if(elapsed<4.5||hunter.stun>0||hunter.reacquire>0||d>AI.sight||!sight(hunter,player))return false;
- if(player.hidden&&d>60)return false;
- if(d<AI.close)return true;
+ if(elapsed<4.5||hunter.stun>0||d>AI.sight||!sight(hunter,player))return false;
+ const near=player.hidden?(player.crouched?54:64):AI.close;
+ if(player.hidden&&d>near)return false;
+ if(d<near)return true;
+ if(player.crouched&&d>250)return false;
  const angle=Math.atan2(player.y-hunter.y,player.x-hunter.x);
  return Math.cos(angle-hunter.dir)>=Math.cos(AI.fov/2);
 }
 function turnHunterToward(angle,dt){
  const diff=Math.atan2(Math.sin(angle-hunter.dir),Math.cos(angle-hunter.dir));
- hunter.dir+=clamp(diff,-3.35*dt,3.35*dt);
+ hunter.dir+=clamp(diff,-3.4*dt,3.4*dt);
 }
 function updateHunter(dt){
- const d=dist(player,hunter),oldState=hunter.state;
- const seen=canHunterSee();
- // Noise only gives a place to investigate, never supernatural wall-penetrating visual lock.
- const heard=!seen&&elapsed>=4.5&&hunter.reacquire<=0&&player.noise>0&&
-   d<(player.dash>0?AI.hearDash:AI.hearDecode)&&hunter.heardCD<=0;
- if(seen){
-   hunter.state='chase';hunter.last={x:player.x,y:player.y};hunter.memory=AI.memory;hunter.alerted=true;
-   if(oldState!=='chase'&&elapsed-hunter.noticeAt>3){announce('見つかった！ 壁や板で視線を切ろう',1.7);hunter.noticeAt=elapsed}
- }else{
-   if(heard){hunter.last={x:player.x,y:player.y};hunter.memory=Math.max(hunter.memory,1.7);hunter.heardCD=1.1;hunter.alerted=true;}
-   hunter.memory=Math.max(0,hunter.memory-dt);
-   hunter.state=hunter.memory>0?'search':'patrol';
-   if(oldState==='chase'&&hunter.state==='search'&&elapsed-hunter.noticeAt>1.6){announce('視線を切った！ 離れて追跡を撒こう',1.8);hunter.noticeAt=elapsed}
-   if(hunter.state==='patrol'&&hunter.alerted){hunter.alerted=false;announce('追跡を撒いた！ 解読を再開しよう',2.1)}
- }
  if(hunter.stun>0){if(Math.random()<dt*15)pushParticle(hunter.x,hunter.y-31,'#fad783',1,30);return}
+ const d=dist(player,hunter),was=hunter.state,seen=canHunterSee();
+ if(seen){
+   hunter.last={x:player.x,y:player.y};hunter.lastSeen=elapsed;
+   if(was!=='chase'){setHunterState('chase');announce('見つかった！ 角を使って視線を切ろう',2)}
+   hunter.alerted=true;
+ }else if(was==='chase'){
+   enterSearch(hunter.last);announce('視界から消えた！ 足音を抑えて潜伏しよう',2);
+ }
+ // Select perceptible events ONLY. A thrown rock makes a different target, not player tracking.
+ if(hunter.state!=='chase'){
+   const heard=noiseEvents.filter(n=>n.id>hunter.noiseId&&elapsed-n.at<1.6&&dist(hunter,n)<=n.radius)
+     .sort((a,b)=>b.id-a.id)[0];
+   if(heard){
+     hunter.noiseId=heard.id;
+     // SEARCH: prefer a strong nearby new sound, otherwise keep searching last-seen location.
+     const important=heard.kind==='rock'||heard.kind==='decode'||heard.kind==='dash';
+     if(hunter.state==='patrol'||hunter.state==='investigate'||(hunter.state==='search'&&important)){
+       enterInvestigation(heard);
+       if(was==='patrol')announce('ハンターが物音を調べている',1.5);
+     }
+   }
+ }
  let target;
- if(hunter.state==='chase'||hunter.state==='search')target=hunter.last;
- else{const pts=[{x:1345,y:115},{x:1075,y:730},{x:370,y:270},{x:620,y:728},{x:1450,y:520}];target=pts[hunter.patrol%pts.length];if(dist(hunter,target)<60)hunter.patrol++}
- // Investigate the last sighting, then give up. No live player position in search state.
- if(hunter.state==='search'&&dist(hunter,target)<60)hunter.memory=Math.min(hunter.memory,.55);
+ if(hunter.state==='chase')target=hunter.last;
+ else if(hunter.state==='search'){
+   if(elapsed>=hunter.searchUntil){setHunterState('patrol');announce('追跡を振り切った！',1.8)}
+   else{
+     target=hunter.searchPoints[hunter.searchIndex]||hunter.last;
+     if(dist(hunter,target)<55){hunter.searchIndex++;
+       if(hunter.searchIndex>=hunter.searchPoints.length)hunter.searchIndex=0;
+       target=hunter.searchPoints[hunter.searchIndex]||hunter.last;
+       hunter.path=[];hunter.pathAt=0}
+   }
+ }else if(hunter.state==='investigate'){
+   target=hunter.lastHeard;
+   if(elapsed>=hunter.investigateUntil){setHunterState('patrol')}
+   else if(target&&dist(hunter,target)<53){hunter.investigateUntil=Math.min(hunter.investigateUntil,elapsed+1.4);}
+ }
+ if(hunter.state==='patrol'){
+   const pts=[{x:1345,y:115},{x:1075,y:730},{x:370,y:270},{x:620,y:728},{x:1450,y:520}];
+   target=pts[hunter.patrol%pts.length];if(dist(hunter,target)<60)hunter.patrol++;
+ }
+ if(!target)return;
  let waypoint=target;
  if(sight(hunter,target)&&dist(hunter,target)<430){hunter.path=[];waypoint=target}
- else{hunter.pathAt-=dt;if(hunter.pathAt<=0||!hunter.path.length){hunter.path=pathfind(hunter,target);hunter.pathAt=.4}if(hunter.path.length){if(dist(hunter,hunter.path[0])<27)hunter.path.shift();waypoint=hunter.path[0]||target}}
+ else{hunter.pathAt-=dt;if(hunter.pathAt<=0||!hunter.path.length){hunter.path=pathfind(hunter,target);hunter.pathAt=.42}
+   if(hunter.path.length){if(dist(hunter,hunter.path[0])<28)hunter.path.shift();waypoint=hunter.path[0]||target}}
  const dx=waypoint.x-hunter.x,dy=waypoint.y-hunter.y,dd=Math.hypot(dx,dy);
- if(dd>1){
-   const spd=hunter.state==='chase'?AI.chaseSpeed:hunter.state==='search'?AI.searchSpeed:AI.patrolSpeed;
-   const moved=moveCircle(hunter,dx/dd*spd*dt,dy/dd*spd*dt);
-   turnHunterToward(Math.atan2(dy,dx),dt);hunter.feet+=moved/41;
- }
+ if(dd>1){const speed=hunter.state==='chase'?AI.chaseSpeed:hunter.state==='search'?AI.searchSpeed:hunter.state==='investigate'?AI.investigateSpeed:AI.patrolSpeed;
+   const moved=moveCircle(hunter,dx/dd*speed*dt,dy/dd*speed*dt);
+   turnHunterToward(Math.atan2(dy,dx),dt);hunter.feet+=moved/41}
  if(elapsed>4.5&&dist(player,hunter)<47&&hunter.attackCD<=0&&player.inv<=0){
-   hunter.attackCD=2.8;player.hp--;player.inv=3.8;flash=.9;shake=7;
+   hunter.attackCD=2.8;player.hp--;player.inv=3;flash=.9;shake=7;
    pushParticle(player.x,player.y,'#f39ba5',19,140);sound(100,.31,'sawtooth',.12);
    if(player.hp<=0){finish(false);return}
-   // Solo recovery: on hit, the hunter recoils and temporarily loses the lock.
-   hunter.stun=1.3;hunter.reacquire=2.0;hunter.heardCD=2;hunter.memory=1.7;
-   hunter.state='search';hunter.last={x:player.x,y:player.y};hunter.path=[];
-   player.dash=Math.max(player.dash,1.35);player.dashCD=Math.min(player.dashCD,3.5);player.noise=0;
-   announce('攻撃された！ 加速中、今なら逃げられる！',2.2);
+   hunter.stun=.85;hunter.last={x:player.x,y:player.y};enterSearch(hunter.last);
+   player.crouched=false;player.dash=Math.max(player.dash,1);player.dashCD=Math.min(player.dashCD,4);player.noise=0;
+   announce('攻撃された！ 加速して視界を切ろう',2.2);
  }
  if(hunter.state==='chase'&&d<260&&elapsed-warningAt>3.3){sound(170,.13,'triangle',.032);warningAt=elapsed}
 }
+function update(dt){
+ elapsed+=dt;
+ player.inv=Math.max(0,player.inv-dt);player.dashCD=Math.max(0,player.dashCD-dt);player.dash=Math.max(0,player.dash-dt);
+ hunter.stun=Math.max(0,hunter.stun-dt);hunter.attackCD=Math.max(0,hunter.attackCD-dt);
+ shake=Math.max(0,shake-dt*12);flash=Math.max(0,flash-dt*2);
+ for(const p of pallets)if(p.t>0)p.t=Math.max(0,p.t-dt);
+ const vx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0)+joy.x;
+ const vy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0)+joy.y;
+ const len=Math.hypot(vx,vy),walking=len>.14;
+ if(walking){const ux=vx/Math.max(1,len),uy=vy/Math.max(1,len),spd=player.dash>0?AI.dashSpeed:player.crouched?AI.crouchSpeed:AI.walkSpeed;
+   const moved=moveCircle(player,ux*spd*dt,uy*spd*dt);player.dir=Math.atan2(uy,ux);player.steps+=moved/55;
+   stepNoiseTimer-=dt;
+   if(stepNoiseTimer<=0){stepNoiseTimer=player.dash>0?.32:player.crouched?.85:.55;
+     emitNoise(player.x,player.y,player.dash>0?215:player.crouched?60:112,player.dash>0?'dash':player.crouched?'sneak':'step')}
+ }else stepNoiseTimer=0;
+ player.hidden=bushes.some(b=>inside(player,b));
+ const action=nearestAction(),holding=holdKey||holdTouch;
+ if(action&&holding){
+   if(action.type==='rock'){
+     if(player.rocks<2&&action.target.left>0){player.rocks++;action.target.left--;
+       holdTouch=false;holdKey=false;announce('石を拾った',1.3);sound(540,.08);}
+   }else if(action.type==='pallet'){
+     const p=action.target;p.used=true;p.t=7.5;holdTouch=false;holdKey=false;hunter.pathAt=0;
+     pushParticle(p.x,p.y,'#f8dba4',16,100);sound(170,.21,'triangle',.1);
+     const hit=circleRect(hunter,{x:p.x-37,y:p.y-20,w:74,h:40});
+     if(hit){hunter.stun=2.3;hunter.path=[];announce('板が命中！ 逃げるチャンス',1.5)}
+     else announce('板で通路を塞いだ',1.3);
+     emitNoise(p.x,p.y,225,'pallet');
+   }else if(!walking){
+     const target=action.target,rate=action.type==='cipher'?1/10.5:1/3.8;
+     target.p=Math.min(1,target.p+dt*rate);
+     decodeNoiseTimer-=dt;
+     if(decodeNoiseTimer<=0){decodeNoiseTimer=1.7;emitNoise(target.x,target.y,235,'decode')}
+     if(Math.random()<dt*12)pushParticle(target.x+rand(-15,15),target.y-18,'#a8ece0',1,24);
+     if(Math.floor(elapsed*4)!==Math.floor((elapsed-dt)*4))sound(action.type==='gate'?380:430+target.p*150,.02,'sine',.017);
+     if(target.p>=1){sound(690,.18,'triangle',.06);pushParticle(target.x,target.y,'#93e9cc',25,120);
+       if(action.type==='gate'){gate.open=true;announce('脱出ゲートが開いた！',2);finish(true);return}
+       const n=ciphers.filter(c=>c.p>=1).length;
+       if(n>=3)announce('暗号機の解読完了！ 南東のゲートへ',3);
+       else announce(`暗号機を解読した！ あと${3-n}台`,2);
+     }
+   }
+ }else decodeNoiseTimer=0;
+ updateHunter(dt);
+ for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.exp(-2*dt);p.vy*=Math.exp(-2*dt);p.life-=dt}
+ particles=particles.filter(p=>p.life>0);
+ noiseEvents=noiseEvents.filter(n=>elapsed-n.at<2);
+ if(msgUntil<elapsed)$('banner').classList.remove('show');
+ updateHud(action);
+}
 function updateHud(action){const done=ciphers.filter(c=>c.p>=1).length;
 $('objectiveText').textContent=done<3?`暗号機を解読 ${done} / 3`:'南東の脱出ゲートへ向かえ！';[...$('meters').children].forEach((i,idx)=>i.classList.toggle('done',idx<done));
-$('hearts').textContent=player.hp===2?'♥ ♥':player.hp===1?'♥ ♡':'♡ ♡';let near=dist(player,hunter);$('dangerLabel').textContent=hunter.stun>0?'追跡者がひるんでいる':hunter.state==='chase'?'⚠ 見つかった！':hunter.state==='search'?'追跡者が捜索中':player.hidden?'草むらに潜伏中':near<200?'追跡者が近くにいる':'霧の中を探索中';$('dangerLabel').style.color=hunter.state==='chase'?'#f3a5af':'#b5c0c9';
-$('abilityText').textContent=player.dashCD<=0?'準備完了':`${player.dashCD.toFixed(1)}秒`;$('abilityBar').style.width=`${100*(1-player.dashCD/AI.dashCooldown)}%`;dashBtn.disabled=player.dashCD>0;dashBtn.style.opacity=player.dashCD>0?'.5':'1';
+$('hearts').textContent=player.hp===2?'♥ ♥':player.hp===1?'♥ ♡':'♡ ♡';let near=dist(player,hunter);$('dangerLabel').textContent=hunter.stun>0?'追跡者がひるんでいる':hunter.state==='chase'?'⚠ 見つかった！':hunter.state==='search'?'⚠ 追跡者が捜索中':hunter.state==='investigate'?'追跡者が物音を調査中':player.hidden?'草むらに潜伏中':near<200?'追跡者が近くにいる':'霧の中を探索中';$('dangerLabel').style.color=hunter.state==='chase'?'#f3a5af':'#b5c0c9';
+$('toolStatus').textContent=`石 ×${player.rocks}　·　${player.crouched?'しゃがみ移動':'通常移動'}${aiming?'　·　投擲先を選択中':''}`;crouchBtn.classList.toggle('selected',player.crouched);rockBtn.classList.toggle('selected',aiming);$('rockBtnText').textContent=`石 ×${player.rocks}`;rockBtn.disabled=player.rocks<=0&&!aiming;
+ $('abilityText').textContent=player.dashCD<=0?'準備完了':`${player.dashCD.toFixed(1)}秒`;$('abilityBar').style.width=`${100*(1-player.dashCD/AI.dashCooldown)}%`;dashBtn.disabled=player.dashCD>0;dashBtn.style.opacity=player.dashCD>0?'.5':'1';
 $('timer').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(Math.floor(elapsed%60)).padStart(2,'0')}`;
-$('context').style.opacity=action?'1':'0';if(action){let t=action.type,txt=t==='cipher'?'暗号機を解読する':t==='gate'?'ゲートを開放する':'板を倒して妨害する';$('contextText').textContent=txt;$('context').querySelector('.keycap').textContent=isTouch()?'✦':'E';$('touchActionText').textContent=t==='pallet'?'倒す':t==='gate'?'開門':'解読';$('actionProgress').style.opacity=t==='pallet'?'0':'1';$('actionProgressBar').style.width=`${Math.round((action.target.p||0)*100)}%`;}else{$('touchActionText').textContent='調べる';$('actionProgress').style.opacity='0'}
+$('context').style.opacity=action?'1':'0';if(action){let t=action.type,txt=t==='cipher'?'暗号機を解読する':t==='gate'?'ゲートを開放する':t==='rock'?'石を拾う':'板を倒して妨害する';$('contextText').textContent=txt;$('context').querySelector('.keycap').textContent=isTouch()?'✦':'E';$('touchActionText').textContent=t==='pallet'?'倒す':t==='rock'?'拾う':t==='gate'?'開門':'解読';$('actionProgress').style.opacity=t==='pallet'||t==='rock'?'0':'1';$('actionProgressBar').style.width=`${Math.round((action.target.p||0)*100)}%`;}else{$('touchActionText').textContent='調べる';$('actionProgress').style.opacity='0'}
 }
-function dash(){if(mode!=='playing'||player.dashCD>0)return;player.dash=1.1;player.dashCD=AI.dashCooldown;player.noise=1.0;pushParticle(player.x,player.y,'#f5d08a',12,65);sound(290,.16,'triangle',.065)}
-const rawKey=e=>e.key.toLowerCase();addEventListener('keydown',e=>{let k=rawKey(e);if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();if(k==='escape'){pause();return}if(mode!=='playing')return;if(k==='shift'&&!e.repeat)dash();if(k==='e'||k===' '){holdKey=true}keys.add(k)});addEventListener('keyup',e=>{let k=rawKey(e);keys.delete(k);if(k==='e'||k===' ')holdKey=false});addEventListener('blur',()=>{if(typeof resetInputs==='function')resetInputs()});
+function dash(){if(mode!=='playing'||player.dashCD>0)return;player.crouched=false;player.dash=.9;player.dashCD=AI.dashCooldown;emitNoise(player.x,player.y,240,'dash');pushParticle(player.x,player.y,'#f5d08a',12,65);sound(290,.16,'triangle',.065)}
+function toggleCrouch(){if(mode!=='playing')return;player.crouched=!player.crouched;if(player.crouched)player.dash=0}
+function cancelAim(){aiming=false;aimPoint=null;$('aimPrompt').classList.remove('show');mobile.classList.remove('aiming');rockBtn.classList.remove('selected')}
+function toggleAim(){if(mode!=='playing')return;if(aiming){cancelAim();return}clearStick();touchMoveId=null;if(player.rocks<=0){announce('石を持っていない。補充場所を探そう',1.6);return}aiming=true;aimPoint=null;mobile.classList.add('aiming');$('aimPrompt').classList.add('show')}
+function chooseRockTarget(screenX,screenY){
+ if(mode!=='playing'||!aiming)return false;
+ const x=(screenX-view.w/2)/view.zoom+view.cx,y=(screenY-view.h/2)/view.zoom+view.cy;
+ const range=Math.hypot(x-player.x,y-player.y);
+ // Ignore UI/invalid targets. A wall may obstruct the straight throwing line.
+ if(x<45||y<45||x>W-45||y>H-45||range>AI.rockRange||obstacles.some(o=>inside({x,y},o))||!sight(player,{x,y})){
+   announce('石は300以内の見通せる地面に投げよう',1.8);return false;
+ }
+ player.rocks--;emitNoise(x,y,275,'rock');emitNoise(player.x,player.y,70,'rustle');
+ pushParticle(x,y,'#e2d09a',14,75);sound(280,.12,'triangle',.055);
+ cancelAim();announce('石を投げた！ 音を調べに来るかも',1.8);return true;
+}
+// Only enabled for local automated verification: no network, progression, or multiplayer effects.
+if((new URLSearchParams(location.search).has('testmode')||window.__FORCE_TEST__===true))window.__yorugiriTest={
+ state:()=>JSON.parse(JSON.stringify({mode,elapsed,player,hunter,noiseEvents,rockPiles,gate,ciphers,pallets})),
+ setPlayer:(x,y)=>{player.x=x;player.y=y},setHunter:(x,y,dir=0)=>{hunter.x=x;hunter.y=y;hunter.dir=dir;hunter.stun=0;hunter.path=[];hunter.pathAt=0},
+ tick:(seconds)=>{for(let t=0;t<seconds;t+=.016)update(Math.min(.016,seconds-t))},
+ crouch:toggleCrouch,aim:toggleAim,throwAt:(x,y)=>{const p=worldScreen(x,y);return chooseRockTarget(p.x,p.y)},
+ noise:(x,y,radius=300,kind='rock')=>emitNoise(x,y,radius,kind),
+ setHunterState:(state)=>{hunter.state=state;hunter.path=[];hunter.pathAt=0},
+ info:()=>({ai:AI,aiming,aimPoint,view})
+};
+const rawKey=e=>e.key.toLowerCase();addEventListener('keydown',e=>{let k=rawKey(e);if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();if(k==='escape'){if(aiming){cancelAim();return}pause();return}if(mode!=='playing')return;if(k==='c'&&!e.repeat)toggleCrouch();if(k==='r'&&!e.repeat)toggleAim();if(k==='shift'&&!e.repeat)dash();if(k==='e'||k===' '){holdKey=true}keys.add(k)});addEventListener('keyup',e=>{let k=rawKey(e);keys.delete(k);if(k==='e'||k===' ')holdKey=false});addEventListener('blur',()=>{if(typeof resetInputs==='function')resetInputs()});
 const stick=$('stickBase'),nub=$('stickNub'),moveArea=$('moveArea');
 let touchMoveId=null,actionTouchId=null;
-function resetInputs(){keys.clear();holdTouch=false;holdKey=false;touchMoveId=null;actionTouchId=null;joy.x=joy.y=0;joy.id=null;nub.style.transform='translate(0,0)';actionBtn.classList.remove('down')}
+function resetInputs(){cancelAim();keys.clear();holdTouch=false;holdKey=false;touchMoveId=null;actionTouchId=null;joy.x=joy.y=0;joy.id=null;nub.style.transform='translate(0,0)';actionBtn.classList.remove('down')}
 addEventListener('pagehide',resetInputs);
 addEventListener('visibilitychange',()=>{if(document.hidden)resetInputs()});
 function updateJoy(e){let b=stick.getBoundingClientRect(),cx=b.left+b.width/2,cy=b.top+b.height/2,dx=e.clientX-cx,dy=e.clientY-cy,r=b.width*.30,len=Math.hypot(dx,dy),factor=Math.min(1,r/Math.max(len,1));let px=dx*factor,py=dy*factor;nub.style.transform=`translate(${px}px,${py}px)`;joy.x=clamp(px/r,-1,1);joy.y=clamp(py/r,-1,1)}
@@ -253,6 +372,11 @@ actionBtn.addEventListener('touchend',finishActionTouch,{passive:true});actionBt
 actionBtn.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'||mode!=='playing')return;e.preventDefault();actionBtn.setPointerCapture(e.pointerId);holdTouch=true;actionBtn.classList.add('down')});
 actionBtn.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')releaseTouch()});actionBtn.addEventListener('pointercancel',e=>{if(e.pointerType!=='touch')releaseTouch()});actionBtn.addEventListener('lostpointercapture',e=>{if(e.pointerType!=='touch')releaseTouch()});
 dashBtn.addEventListener('touchstart',e=>{e.preventDefault();dash()},{passive:false});dashBtn.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'){e.preventDefault();dash()}});
+function bindToggle(btn,fn){btn.addEventListener('touchstart',e=>{e.preventDefault();fn()},{passive:false});btn.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'){e.preventDefault();fn()}})}
+bindToggle(crouchBtn,toggleCrouch);bindToggle(rockBtn,toggleAim);
+cvs.addEventListener('touchstart',e=>{if(!aiming||mode!=='playing')return;e.preventDefault();const t=e.changedTouches[0];if(t)chooseRockTarget(t.clientX,t.clientY)},{passive:false});
+cvs.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'||!aiming||mode!=='playing')return;e.preventDefault();chooseRockTarget(e.clientX,e.clientY)});
+cvs.addEventListener('pointermove',e=>{if(aiming)aimPoint={x:e.clientX,y:e.clientY}});
 $('pauseBtn').addEventListener('click',pause);$('startBtn').addEventListener('click',start);$('restartBtn').addEventListener('click',start);$('resumeBtn').addEventListener('click',pause);
 function worldScreen(x,y){return {x:(x-view.cx)*view.zoom+view.w/2,y:(y-view.cy)*view.zoom+view.h/2}}
 function visible(x,y,pad=130){const s=worldScreen(x,y);return s.x>-pad&&s.x<view.w+pad&&s.y>-pad&&s.y<view.h+pad}
@@ -290,6 +414,8 @@ if(mode==='playing'){
 for(const r of obstacles){roundRect(r.x+5,r.y+9,r.w,r.h,9,'#080f1a6e');roundRect(r.x,r.y,r.w,r.h,8,'#566263','#818b8499');roundRect(r.x+8,r.y+7,r.w-16,r.h-15,4,'#4a5659','#82938e66');ctx.strokeStyle='#94a6a04a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(r.x+16,r.y+r.h*.5);ctx.lineTo(r.x+r.w*.64,r.y+r.h*.51);ctx.lineTo(r.x+r.w*.72,r.y+r.h-9);ctx.stroke();ctx.strokeStyle='#232f31';ctx.beginPath();ctx.moveTo(r.x+r.w*.26,r.y+10);ctx.lineTo(r.x+r.w*.32,r.y+26);ctx.stroke()}
 // tall grass, darker underside and translucent fronds
 for(const b of bushes){roundRect(b.x,b.y,b.w,b.h,20,'#152c2a','#6c9c7750');for(let i=0;i<18;i++){let gx=b.x+12+((i*71)%Math.max(15,b.w-24)),gy=b.y+13+((i*43)%Math.max(15,b.h-25));ctx.strokeStyle=i%3?'#507963aa':'#7ca487bb';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(gx,gy+7);ctx.quadraticCurveTo(gx+((i%3)-1)*7,gy-7,gx+((i%4)-2)*5,gy-14);ctx.stroke()}}
+// consumable rock pickups
+for(const p of rockPiles)if(p.left>0){ctx.fillStyle='#e7d2a4';ctx.beginPath();ctx.arc(p.x,p.y,12,0,TAU);ctx.fill();ctx.fillStyle='#536363';ctx.beginPath();ctx.arc(p.x+3,p.y-3,5,0,TAU);ctx.fill();worldLabel(p.x,p.y-30,'石の補充','#e6d19e')}
 // border and exit arrow
 ctx.strokeStyle='#a9bfb54a';ctx.lineWidth=9;ctx.strokeRect(35,35,W-70,H-70);
 // gate
@@ -306,7 +432,14 @@ const near=dist(player,hunter);if(mode==='playing'&&near<390){let a=clamp((390-n
 ctx.save();ctx.translate(hunter.x,hunter.y);ctx.rotate(hunter.dir);ctx.fillStyle='#050b10a8';ctx.beginPath();ctx.ellipse(3,9,22,10,0,0,TAU);ctx.fill();ctx.strokeStyle='#ed9cae';ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,0,23,0,TAU);ctx.stroke();polygon([[19,-11],[46,0],[19,11]],'#b7546c');ctx.fillStyle=hunter.stun>0?'#b3aea2':'#cf657a';ctx.beginPath();ctx.arc(0,0,19,0,TAU);ctx.fill();ctx.fillStyle='#321c2b';ctx.beginPath();ctx.arc(6,-6,4,0,TAU);ctx.arc(6,6,4,0,TAU);ctx.fill();ctx.restore();if(hunter.stun>0)worldLabel(hunter.x,hunter.y-44,'気絶中','#f5d59b');else if(hunter.state==='chase'&&mode==='playing')worldLabel(hunter.x,hunter.y-45,'追跡中！','#ff9dab');
 // player, pulse and directional scarf
 if(player.dash>0){ctx.fillStyle='#d6dba820';ctx.beginPath();ctx.arc(player.x,player.y,33,0,TAU);ctx.fill()}
-ctx.save();ctx.translate(player.x,player.y);ctx.rotate(player.dir);ctx.fillStyle='#060a1090';ctx.beginPath();ctx.ellipse(4,9,22,9,0,0,TAU);ctx.fill();ctx.fillStyle='#d2b2a1';polygon([[-2,-8],[-30,-15],[-17,1],[-30,14],[-2,7]],'#e7b67c');ctx.fillStyle=player.inv>0&&Math.floor(elapsed*10)%2===0?'#567c83':'#74bfb4';ctx.beginPath();ctx.arc(0,0,17,0,TAU);ctx.fill();ctx.strokeStyle='#d9f4e6';ctx.lineWidth=3;ctx.stroke();ctx.fillStyle='#284b50';ctx.beginPath();ctx.arc(7,0,4,0,TAU);ctx.fill();ctx.restore();if(player.hidden)worldLabel(player.x,player.y-38,'潜伏中','#a4ddba');
+ctx.save();ctx.translate(player.x,player.y);ctx.rotate(player.dir);if(player.crouched)ctx.scale(.83,.83);ctx.fillStyle='#060a1090';ctx.beginPath();ctx.ellipse(4,9,22,9,0,0,TAU);ctx.fill();ctx.fillStyle='#d2b2a1';polygon([[-2,-8],[-30,-15],[-17,1],[-30,14],[-2,7]],'#e7b67c');ctx.fillStyle=player.inv>0&&Math.floor(elapsed*10)%2===0?'#567c83':'#74bfb4';ctx.beginPath();ctx.arc(0,0,17,0,TAU);ctx.fill();ctx.strokeStyle='#d9f4e6';ctx.lineWidth=3;ctx.stroke();ctx.fillStyle='#284b50';ctx.beginPath();ctx.arc(7,0,4,0,TAU);ctx.fill();ctx.restore();if(player.hidden)worldLabel(player.x,player.y-38,player.crouched?'静かに潜伏':'草むらに潜伏','#a4ddba');else if(player.crouched)worldLabel(player.x,player.y-38,'しゃがみ','#a4ddba');
+// Throw preview in WORLD coordinates, no range bypass
+if(aiming){
+ ctx.save();ctx.strokeStyle='#e3c791b8';ctx.lineWidth=2;ctx.setLineDash([10,9]);ctx.beginPath();ctx.arc(player.x,player.y,AI.rockRange,0,TAU);ctx.stroke();ctx.setLineDash([]);
+ if(aimPoint){const target={x:(aimPoint.x-view.w/2)/view.zoom+view.cx,y:(aimPoint.y-view.h/2)/view.zoom+view.cy};
+   const valid=dist(target,player)<=AI.rockRange&&!obstacles.some(r=>inside(target,r))&&sight(player,target);
+   ctx.strokeStyle=valid?'#a8e7b3':'#f4a5a5';ctx.beginPath();ctx.moveTo(player.x,player.y);ctx.lineTo(target.x,target.y);ctx.stroke();ctx.beginPath();ctx.arc(target.x,target.y,16,0,TAU);ctx.stroke()}
+ ctx.restore();}
 ctx.restore();
 // light, spotlight and chase vignette
 const pos=worldScreen(player.x,player.y);let lg=ctx.createRadialGradient(pos.x,pos.y,35,pos.x,pos.y,Math.max(240,Math.min(w,h)*.67));lg.addColorStop(0,'#bdedd510');lg.addColorStop(.6,'#0a111c05');lg.addColorStop(1,'#0710194c');ctx.fillStyle=lg;ctx.fillRect(0,0,w,h);
@@ -317,7 +450,7 @@ if(mode==='playing'||mode==='paused')drawMinimap();
 }
 function worldLabel(x,y,text,color){ctx.font='bold 13px ui-sans-serif,system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';const width=ctx.measureText(text).width+16;roundRect(x-width/2,y-11,width,22,5,'#0b151edb','#ffffff13');ctx.fillStyle=color;ctx.fillText(text,x,y)}
 function drawProgress(x,y,p,width){roundRect(x-width/2,y-4,width,7,4,'#151f28','#a8e9db4a');if(p>.005)roundRect(x-width/2+2,y-2,Math.max(0,(width-4)*p),3,2,'#a2e7d3')}
-function drawMinimap(){const size=isTouch()?104:142,x=view.w-size-15,y=isTouch()?view.h-size-170:95,scale=size/W;ctx.save();ctx.globalAlpha=.92;roundRect(x,y,size,size*H/W,8,'#0b1924de','#cad8cf58');ctx.save();ctx.beginPath();ctx.roundRect(x,y,size,size*H/W,8);ctx.clip();for(const r of obstacles){ctx.fillStyle='#7c8d8e';ctx.fillRect(x+r.x*scale,y+r.y*scale,r.w*scale,r.h*scale)}for(const c of ciphers){ctx.fillStyle=c.p>=1?'#a1efd0':'#f0d299';ctx.beginPath();ctx.arc(x+c.x*scale,y+c.y*scale,3.4,0,TAU);ctx.fill()}ctx.fillStyle='#e9cc89';ctx.fillRect(x+gate.x*scale-3,y+gate.y*scale-3,6,6);ctx.fillStyle='#f48a9e';ctx.beginPath();ctx.arc(x+hunter.x*scale,y+hunter.y*scale,4.1,0,TAU);ctx.fill();ctx.fillStyle='#b8eee1';ctx.beginPath();ctx.arc(x+player.x*scale,y+player.y*scale,4.2,0,TAU);ctx.fill();ctx.restore();ctx.restore()}
+function drawMinimap(){const size=isTouch()?96:142,x=view.w-size-12,y=isTouch()?view.h-size-230:95,scale=size/W;ctx.save();ctx.globalAlpha=.92;roundRect(x,y,size,size*H/W,8,'#0b1924de','#cad8cf58');ctx.save();ctx.beginPath();ctx.roundRect(x,y,size,size*H/W,8);ctx.clip();for(const r of obstacles){ctx.fillStyle='#7c8d8e';ctx.fillRect(x+r.x*scale,y+r.y*scale,r.w*scale,r.h*scale)}for(const c of ciphers){ctx.fillStyle=c.p>=1?'#a1efd0':'#f0d299';ctx.beginPath();ctx.arc(x+c.x*scale,y+c.y*scale,3.4,0,TAU);ctx.fill()}ctx.fillStyle='#e9cc89';ctx.fillRect(x+gate.x*scale-3,y+gate.y*scale-3,6,6);ctx.fillStyle='#f48a9e';ctx.beginPath();ctx.arc(x+hunter.x*scale,y+hunter.y*scale,4.1,0,TAU);ctx.fill();ctx.fillStyle='#b8eee1';ctx.beginPath();ctx.arc(x+player.x*scale,y+player.y*scale,4.2,0,TAU);ctx.fill();ctx.restore();ctx.restore()}
 function tick(t){const dt=Math.min((t-last)/1000,.033);last=t;if(mode==='playing')update(dt);draw();requestAnimationFrame(tick)}
 requestAnimationFrame(tick);
 })();
