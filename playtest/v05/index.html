@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#101521">
+<title>夜霧の脱出 v0.5 | 4対1 チーム脱出</title>
+<style>
+:root{--paper:#f6f0df;--muted:#b5c0c9;--gold:#f1c478;--aqua:#9fe3d3;--danger:#f390a2;--glass:rgba(12,18,29,.78)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#09101b;color:var(--paper);font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;user-select:none;-webkit-user-select:none;overscroll-behavior:none;touch-action:none}
+#game{position:fixed;inset:0;display:block;width:100%;height:100%;touch-action:none}
+#vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 28%,rgba(3,7,14,.38) 100%);z-index:1}
+#hud{position:fixed;inset:0;z-index:3;pointer-events:none;display:none}
+#hud.visible{display:block}
+.topline{position:absolute;top:calc(13px + env(safe-area-inset-top));left:16px;right:16px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.card{border:1px solid rgba(217,230,225,.18);background:var(--glass);box-shadow:0 8px 24px rgba(0,0,0,.24);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:15px}
+.objective{padding:11px 14px;min-width:235px;max-width:min(62vw,370px)}
+.smallcap{font-size:10px;letter-spacing:2.3px;font-weight:800;color:var(--gold);margin-bottom:4px}
+.objective .line{font-size:14px;font-weight:800;letter-spacing:.35px;line-height:1.45}
+.meters{display:flex;gap:5px;margin-top:9px}
+.meters i{display:block;height:5px;flex:1;background:#4e5863;border-radius:9px;overflow:hidden}
+.meters i::after{content:"";display:block;height:100%;transform:scaleX(0);transform-origin:left;background:var(--aqua);transition:transform .16s}
+.meters i.done::after{transform:scaleX(1)}
+.health{padding:11px 13px;text-align:right;min-width:129px}
+.health .hearts{font-size:22px;color:var(--danger);letter-spacing:3px;line-height:1.1}
+.health .label{font-size:11px;color:var(--muted);margin-top:5px}
+#banner{position:absolute;top:calc(102px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:rgba(12,18,29,.87);border:1px solid rgba(232,206,149,.34);border-radius:12px;padding:10px 17px;max-width:85vw;text-align:center;font-size:13px;font-weight:700;transition:opacity .35s;opacity:0;white-space:normal;box-shadow:0 8px 24px #06090e55}
+#banner.show{opacity:1}
+#context{position:absolute;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(390px,80vw);text-align:center;transition:opacity .15s}
+#context .keycap{display:inline-block;color:#13252c;background:var(--aqua);border-radius:5px;padding:4px 9px;font-size:12px;font-weight:900}
+#context .text{display:inline-block;margin-left:8px;font-size:13px;font-weight:700;text-shadow:0 2px 10px black}
+#actionProgress{height:5px;background:rgba(225,241,238,.17);border-radius:10px;margin:9px auto 0;max-width:290px;overflow:hidden;opacity:0}
+#actionProgress span{display:block;height:100%;width:0;background:var(--aqua);box-shadow:0 0 8px var(--aqua)}
+#ability{position:absolute;left:16px;bottom:calc(25px + env(safe-area-inset-bottom));width:157px;padding:9px 12px;font-size:11px;color:#d8e1e3}
+#ability b{color:var(--gold)}
+#ability .cool{height:4px;background:#42505a;border-radius:8px;overflow:hidden;margin-top:8px}
+#ability .cool span{display:block;width:100%;height:100%;background:var(--gold)}
+#timer{position:absolute;right:16px;bottom:calc(25px + env(safe-area-inset-bottom));padding:11px 13px;font-size:13px;letter-spacing:1px;font-variant-numeric:tabular-nums}
+#tutorialHint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(67px + env(safe-area-inset-bottom));color:#c9d7d8;font-size:11px;text-shadow:0 1px 10px #000;text-align:center;opacity:.85;white-space:nowrap}
+#mobileControls{position:fixed;inset:0;z-index:5;display:none;pointer-events:none;user-select:none;-webkit-user-select:none}
+#moveArea{position:absolute;left:0;bottom:0;width:54%;height:59%;pointer-events:auto;touch-action:none;overscroll-behavior:contain}
+#mobileControls.visible.touch-ready{display:block}
+#mobileControls.aiming #moveArea{pointer-events:auto}
+#mobileControls.aiming #stickBase{pointer-events:auto}
+html.touch-capable #mobileControls.visible{display:block}
+#stickBase{position:absolute;width:132px;height:132px;bottom:calc(45px + env(safe-area-inset-bottom));left:23px;border-radius:50%;border:2px solid rgba(200,236,231,.31);background:radial-gradient(circle,rgba(109,161,161,.18),rgba(15,35,42,.37));box-shadow:0 0 30px #07141c33;pointer-events:auto;touch-action:none}
+#stickBase.active{opacity:1;border-color:rgba(203,253,225,.70);box-shadow:0 0 32px rgba(128,241,211,.23)}
+#stickBase:not(.active){opacity:.72}
+#stickNub{position:absolute;width:56px;height:56px;left:36px;top:36px;border-radius:50%;border:1px solid rgba(236,253,243,.68);background:rgba(172,223,215,.30);box-shadow:0 2px 13px #07101955;pointer-events:none;transform:translate(0,0)}
+#touchButtons{position:absolute;right:13px;bottom:calc(34px + env(safe-area-inset-bottom));display:grid;grid-template-columns:60px 83px;grid-template-rows:60px 83px;gap:7px;align-items:center;justify-items:center;pointer-events:auto}
+.touchBtn{border:1px solid #d9e7e450;color:#f9f6ed;background:rgba(22,35,48,.83);box-shadow:0 8px 25px #030a0d66;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;touch-action:none;font-weight:800;font-size:12px;letter-spacing:.5px;text-shadow:0 1px 5px #000}
+.touchBtn{padding:0;white-space:nowrap}.touchBtn .symbol{font-size:23px;line-height:1.2}
+#touchAction{width:88px;height:88px;background:rgba(32,76,78,.89);border-color:rgba(172,230,212,.56)}
+#touchDash{grid-column:1;grid-row:2;width:60px;height:60px;border-color:#edc47b88}
+#touchAction{grid-column:2;grid-row:2}
+#touchRock{grid-column:2;grid-row:1;width:58px;height:58px;border-color:#e7d8ac9a}
+#touchCrouch{grid-column:1;grid-row:1;width:58px;height:58px;border-color:#9cd9c1a0}
+#touchRock{display:none}#touchRock.selected,#touchCrouch.selected{background:#427368e8;border-color:#b9f3d8}
+#teamStatus{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 7px;margin-top:7px;font-size:10px}#teamStatus .member{color:var(--member);display:flex;gap:5px;justify-content:space-between;white-space:nowrap}#teamStatus b{color:#d7dedc;font-weight:600}#toolStatus{font-size:10px;color:#d8ddd9;margin-top:7px;font-weight:700;letter-spacing:.1px}
+#aimPrompt{position:fixed;top:52%;left:50%;transform:translate(-50%,-50%);padding:12px 17px;border:1px solid #c7dca999;border-radius:14px;background:#071824dc;z-index:4;pointer-events:none;font-size:13px;font-weight:800;text-align:center;display:none;max-width:80vw}
+#aimPrompt.show{display:block}
+@media(max-width:370px){#touchButtons{grid-template-columns:53px 74px;grid-template-rows:54px 73px;gap:5px}#touchRock,#touchCrouch{width:52px;height:52px}#touchAction{width:74px;height:74px}#touchDash{width:54px;height:54px}}
+@media(max-height:520px){#touchButtons{grid-template-columns:53px 74px;grid-template-rows:50px 70px;gap:4px;right:10px}#touchRock,#touchCrouch{width:48px;height:48px}}
+.touchBtn.down{transform:scale(.96);filter:brightness(1.45)}
+#touchDash:disabled{opacity:.4}
+#screens{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(26,47,57,.48),rgba(5,9,16,.89) 70%);padding:22px;overflow-y:auto;touch-action:pan-y}
+.screen{width:min(480px,100%);text-align:center;animation:appear .35s ease-out}
+@keyframes appear{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.eyebrow{font-size:11px;font-weight:800;color:var(--gold);letter-spacing:4px;margin-bottom:15px}
+#resultTitle{font-size:clamp(29px,8vw,51px);letter-spacing:1px}h1{font-size:clamp(37px,10vw,69px);letter-spacing:5px;line-height:1.1;font-weight:900;margin:0 0 13px;text-shadow:0 5px 35px #000}
+.subtitle{font-size:13px;line-height:1.9;color:#d4dddf;margin:0 auto 25px;max-width:370px}
+.ruleBox{background:rgba(11,25,37,.72);border:1px solid #d8ece824;text-align:left;padding:17px 20px;border-radius:14px;margin:17px 0 21px;line-height:1.8;font-size:13px;color:#e0e6e3}
+.ruleBox p{margin:3px 0}
+.ruleBox b{color:var(--aqua)}
+.primary{font:inherit;cursor:pointer;width:100%;border:1px solid #e3cf99;background:linear-gradient(135deg,#e9c78d,#cfa66c);color:#19232a;border-radius:12px;padding:15px;font-weight:900;letter-spacing:2px;font-size:15px;box-shadow:0 9px 30px #05090988;touch-action:manipulation}
+.primary:hover{filter:brightness(1.07)}
+.footnote{font-size:11px;color:#aeb9bb;margin-top:17px;line-height:1.8}
+#resultStat{display:flex;gap:8px;justify-content:center;margin:15px 0 24px}
+.stat{padding:14px 18px;border-radius:12px;background:#1e2a36aa;min-width:100px}
+.stat strong{display:block;font-size:22px;color:var(--gold)}
+.stat span{font-size:11px;color:#b6c6c7}
+#pauseBtn{position:fixed;z-index:6;top:calc(17px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:none;border:1px solid #e9eee644;border-radius:50%;width:39px;height:39px;color:#e6f1ed;background:#15222b99;font-size:18px;cursor:pointer;touch-action:manipulation}
+#pauseBtn.show{display:block}
+@media(pointer:coarse), (max-width:820px){#mobileControls.visible{display:block}#context{bottom:calc(201px + env(safe-area-inset-bottom));width:min(280px,75vw)}#ability,#timer,#tutorialHint{display:none}.objective{min-width:0;width:213px;padding:9px 10px}.objective .line{font-size:12px}.health{min-width:99px;padding:10px}.health .hearts{font-size:19px}.topline{left:11px;right:11px;gap:5px}#pauseBtn{top:calc(79px + env(safe-area-inset-top));left:auto;right:14px;transform:none}#banner{top:calc(150px + env(safe-area-inset-top));font-size:12px}}
+@media(max-width:420px){h1{letter-spacing:2px}.eyebrow{letter-spacing:2px}.ruleBox{padding:13px 15px;font-size:12px}.subtitle{font-size:12px}#stickBase{left:14px;bottom:calc(27px + env(safe-area-inset-bottom));width:118px;height:118px}#stickNub{left:31px;top:31px;width:52px;height:52px}#touchButtons{right:12px;bottom:calc(18px + env(safe-area-inset-bottom));gap:5px}#touchAction{width:83px;height:83px}#touchDash{width:58px;height:58px;font-size:10px;letter-spacing:0}}
+@media (max-height:520px){#stickBase{bottom:calc(9px + env(safe-area-inset-bottom));width:108px;height:108px;left:24px}#stickNub{width:48px;height:48px;left:28px;top:28px}#touchButtons{bottom:calc(8px + env(safe-area-inset-bottom))}#touchAction{width:76px;height:76px}#touchDash{width:55px;height:55px;margin-bottom:0}.topline{top:calc(5px + env(safe-area-inset-top))}#context{bottom:calc(141px + env(safe-area-inset-bottom));font-size:11px}}
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="夜霧の脱出 ゲーム画面"></canvas>
+<div id="vignette"></div>
+<div id="hud">
+ <div class="topline"><div class="objective card"><div class="smallcap">MISSION // ESCAPE</div><div class="line" id="objectiveText">7台中5台を修復して脱出</div><div class="meters" id="meters"><i></i><i></i><i></i></div><div id="toolStatus">4人の協力で脱出</div><div id="teamStatus" aria-label="仲間の状態"></div></div><div class="health card"><div id="hearts" class="hearts">♥ ♥</div><div class="label" id="dangerLabel">霧の中を探索中</div></div></div>
+ <div id="banner"></div><div id="context"><div><span class="keycap">E</span><span class="text" id="contextText">暗号機を解読する</span></div><div id="actionProgress"><span id="actionProgressBar"></span></div></div>
+ <div id="ability" class="card"><b>SHIFT</b> ダッシュ <span id="abilityText">準備完了</span><div class="cool"><span id="abilityBar"></span></div></div>
+ <div id="timer" class="card">00:00</div><div id="tutorialHint">移動 WASD · 解読 E · ダッシュ Shift · しゃがみ C · 救助 E長押し · Esc</div>
+</div>
+<div id="mobileControls"><div id="moveArea" aria-label="左側をタッチして移動"><div id="stickBase"><div id="stickNub"></div></div></div><div id="touchButtons"><button id="touchCrouch" class="touchBtn" aria-label="しゃがみ切り替え"><span class="symbol">⌄</span><span>しゃがむ</span></button><button id="touchRock" class="touchBtn" aria-label="仲間の状況確認"><span class="symbol">☷</span><span id="rockBtnText">仲間</span></button><button id="touchDash" class="touchBtn" aria-label="ダッシュ"><span class="symbol">➜</span><span>ダッシュ</span></button><button id="touchAction" class="touchBtn" aria-label="アクション"><span class="symbol">✦</span><span id="touchActionText">調べる</span></button></div></div>
+<div id="aimPrompt">石を投げる方向へボタンをドラッグ
+<br><small>または地面をタップ · 石ボタンでもキャンセル</small></div>
+<button id="pauseBtn" aria-label="一時停止">Ⅱ</button>
+<div id="screens">
+ <div class="screen" id="menuScreen"><div class="eyebrow">TEAM / RESCUE / ASYMMETRIC BOT MATCH</div><h1>夜霧の脱出</h1><p class="subtitle">4人で修復、チェイス、救助。<br>仲間を生かして3人以上の脱出を目指せ。</p><div class="ruleBox"><p>✧ 君と味方BOT3人 vs ハンターBOT1体</p><p>✧ <b>7台中5台</b> を修復して2つの出口を開けよう</p><p>✧ 仲間が拘束されたら、近づいて<b>救助</b>できる</p><p>✧ <b>3人以上が脱出</b>で勝利、2人は引き分け</p><p>✧ 君が追われる間も味方が修復を進める</p><p>✧ PC：WASD／E長押し／Shift／C　スマホ：左スティック＋右側の操作</p></div><button class="primary" id="startBtn">探索を開始する　→</button><div class="footnote">4対1のBOT戦プロトタイプ。実際のオンライン対戦ではありません。<br>音を使うため、必要に応じて端末の音量を上げてください。</div></div>
+ <div class="screen" id="resultScreen" style="display:none"><div class="eyebrow" id="resultTag">RESULT</div><h1 id="resultTitle">脱出成功</h1><p class="subtitle" id="resultSubtitle">夜霧の向こうに道が開けた。</p><div id="resultStat"></div><button class="primary" id="restartBtn">もう一度プレイ　→</button><div class="footnote">スタート画面に戻るには画面を更新してください。</div></div>
+ <div class="screen" id="pauseScreen" style="display:none"><div class="eyebrow">PAUSED</div><h1>一時停止</h1><p class="subtitle">霧の中で時間が止まっている。</p><button class="primary" id="resumeBtn">ゲームに戻る　→</button><div class="footnote">Escキーでも再開できます。</div></div>
+</div>
+<script>
+(()=>{'use strict';
+const cvs=document.getElementById('game'),ctx=cvs.getContext('2d',{alpha:false});
+const $=id=>document.getElementById(id);
+const hud=$('hud'),mobile=$('mobileControls'),screens=$('screens'),actionBtn=$('touchAction'),dashBtn=$('touchDash'),crouchBtn=$('touchCrouch'),rockBtn=$('touchRock');
+const W=1600,H=1050,TAU=Math.PI*2;
+const REQUIRED=5, MAX_TIME=540;
+// v0.4 STEALTH: perception, distraction and chase are separate information states.
+const AI={sight:278,fov:Math.PI*.79,close:62,walkSpeed:175,crouchSpeed:105,chaseSpeed:184,searchSpeed:145,investigateSpeed:143,patrolSpeed:115,dashSpeed:318,dashCooldown:10,searchDuration:5.2,rockRange:300};
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v)),dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),rand=(a,b)=>a+Math.random()*(b-a);
+const isTouch=()=>matchMedia('(pointer:coarse)').matches || navigator.maxTouchPoints>0 || 'ontouchstart' in window || innerWidth<=820;
+const setTouchCapability=()=>document.documentElement.classList.toggle('touch-capable',isTouch());
+let view={w:innerWidth,h:innerHeight,dpr:1,zoom:1,cx:W/2,cy:H/2},mode='menu',elapsed=0,shake=0,flash=0,warningAt=-10,msgUntil=0,msg='';
+const keys=new Set();let joy={x:0,y:0,id:null},holdTouch=false,holdKey=false,last=performance.now();
+let player,hunter,ciphers,pallets,gate,particles,decor,bushes,obstacles,rockPiles,noiseEvents=[],wasNearby=false;
+let aiming=false,aimPoint=null,noiseSeq=0,stepNoiseTimer=0,decodeNoiseTimer=0;
+let audio=null,soundOn=true;
+let survivors=[],bots=[],gates=[],hunterSpotted={x:0,y:0,at:-100},rescueHold=0,endingAt=0,stats={hits:0,rescues:0,teamRepairs:0,playerRepairs:0,botChases:0,playerChases:0,elapsedGame:0},botLog=[];
+function sound(freq=380,duration=.09,type='sine',gain=.055){if(!soundOn||!audio)return;try{const o=audio.createOscillator(),g=audio.createGain();o.type=type;o.frequency.setValueAtTime(freq,audio.currentTime);g.gain.setValueAtTime(gain,audio.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+duration);o.connect(g);g.connect(audio.destination);o.start();o.stop(audio.currentTime+duration+.005)}catch(_){}}
+function initAudio(){try{audio=audio||new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume()}catch(_){soundOn=false}}
+function seedDecor(){decor=[];for(let i=0;i<230;i++){let x=rand(42,W-42),y=rand(42,H-42);decor.push({x,y,kind:i%5,size:rand(3,11),alpha:rand(.14,.46)})}}
+function createWorld(){
+ obstacles=[
+ {x:215,y:130,w:155,h:78},{x:510,y:115,w:85,h:180},{x:720,y:260,w:204,h:84},{x:1025,y:125,w:90,h:185},{x:1240,y:230,w:170,h:75},
+ {x:270,y:430,w:235,h:70},{x:690,y:515,w:70,h:200},{x:985,y:480,w:195,h:75},{x:1315,y:640,w:78,h:188},
+ {x:220,y:780,w:175,h:72},{x:505,y:825,w:140,h:75},{x:930,y:815,w:175,h:90},{x:1190,y:902,w:155,h:67}
+ ];
+ bushes=[{x:82,y:370,w:117,h:90},{x:365,y:600,w:156,h:115},{x:794,y:75,w:154,h:96},{x:1130,y:346,w:140,h:103},{x:770,y:816,w:126,h:117},{x:1420,y:475,w:126,h:96},{x:1037,y:662,w:113,h:109}];
+ ciphers=[{x:385,y:265,p:0},{x:865,y:395,p:0},{x:1280,y:495,p:0},{x:590,y:725,p:0},{x:1440,y:185,p:0},{x:1340,y:840,p:0},{x:350,y:690,p:0}];
+ pallets=[{x:570,y:365,used:false,t:0,angle:0.4},{x:954,y:310,used:false,t:0,angle:-.5},{x:1140,y:735,used:false,t:0,angle:1.1},{x:448,y:938,used:false,t:0,angle:0.2},{x:1420,y:780,used:false,t:0,angle:.7}];
+ gates=[{x:1510,y:953,p:0,open:false},{x:88,y:115,p:0,open:false}];gate=gates[0];
+ rockPiles=[];noiseEvents=[];noiseSeq=0;stepNoiseTimer=0;decodeNoiseTimer=0;aiming=false;aimPoint=null;
+ player={id:0,name:'YOU',x:125,y:884,r:17,hp:2,inv:0,dir:0,dash:0,dashCD:0,steps:0,noise:0,hidden:false,crouched:false,rocks:0,captured:0,captures:0,escaped:false,out:false,role:'manual',progress:0};
+  const deploymentSets=[
+    [{x:400,y:900},{x:890,y:888},{x:880,y:150}],
+    [{x:320,y:330},{x:870,y:880},{x:1470,y:415}],
+    [{x:400,y:900},{x:1050,y:790},{x:140,y:245}],
+    [{x:150,y:385},{x:540,y:930},{x:880,y:150}]
+  ];
+  bots=deploymentSets[Math.floor(Math.random()*deploymentSets.length)].map((pos,i)=>({...pos,id:i+1,name:['MIO','REN','AOI'][i],r:17,hp:2,inv:0,dir:0,hidden:false,crouched:false,captured:0,captures:0,escaped:false,out:false,role:'repair',goal:null,assigned:null,waypoints:[],pathAt:0,decisionAt:0,rescueAt:0,progress:0,stuckAt:0,lastX:pos.x,lastY:pos.y,fleeUntil:0,evadeTo:null}));
+  survivors=[player,...bots];hunterSpotted={x:0,y:0,at:-100};rescueHold=0;endingAt=0;stats={hits:0,rescues:0,teamRepairs:0,playerRepairs:0,botChases:0,playerChases:0,elapsedGame:0};botLog=[];
+ hunter={x:1330,y:100,r:21,dir:0,stun:0,attackCD:0,reacquire:0,alerted:false,noticeAt:-20,state:'patrol',targetId:null,last:{x:1330,y:100},lastSeen:0,lastHeard:null,noiseId:0,investigateUntil:0,searchUntil:0,searchPoints:[],searchIndex:0,path:[],pathAt:0,patrol:Math.floor(Math.random()*7),feet:0};
+ particles=[];elapsed=0;shake=0;flash=0;msgUntil=0;wasNearby=false;joy={x:0,y:0,id:null};holdTouch=false;holdKey=false;
+ seedDecor();
+}
+function resize(){setTouchCapability();view.w=innerWidth;view.h=innerHeight;view.dpr=Math.min(devicePixelRatio||1,2);cvs.width=Math.round(view.w*view.dpr);cvs.height=Math.round(view.h*view.dpr);view.zoom=isTouch()?clamp(view.w/455,.67,.99):clamp(view.w/1130,.86,1.15)}
+addEventListener('resize',resize,{passive:true});resize();createWorld();
+function start(){initAudio();createWorld();resetInputs();mode='playing';screens.style.display='none';hud.classList.add('visible');$('pauseBtn').classList.add('show');mobile.classList.toggle('visible',isTouch());$('menuScreen').style.display='none';$('resultScreen').style.display='none';$('pauseScreen').style.display='none';announce('味方と5台の修復を目指そう',2.4);sound(540,.14);last=performance.now()}
+function showScreen(name){resetInputs();cancelAim();screens.style.display='flex';$('menuScreen').style.display=name==='menu'?'block':'none';$('resultScreen').style.display=name==='result'?'block':'none';$('pauseScreen').style.display=name==='pause'?'block':'none';hud.classList.toggle('visible',name==='pause');mobile.classList.remove('visible');$('pauseBtn').classList.remove('show')}
+function pause(){if(mode==='playing'){cancelAim();mode='paused';showScreen('pause')}else if(mode==='paused'){resetInputs();mode='playing';screens.style.display='none';hud.classList.add('visible');mobile.classList.toggle('visible',isTouch());$('pauseBtn').classList.add('show');last=performance.now()}}
+function finish(win){
+  if(mode==='ended')return;
+  mode='ended';showScreen('result');
+  const escaped=survivors.filter(s=>s.escaped).length;
+  const outcome=escaped>=3?'SUCCESS / TEAM ESCAPED':escaped===2?'DRAW / TWO ESCAPED':'FAILED / CAUGHT';
+  $('resultTag').textContent=outcome;$('resultTag').style.color=escaped>=3?'#9fe3d3':escaped===2?'#f1c478':'#f390a2';
+  $('resultTitle').textContent=escaped>=3?'チーム脱出成功':escaped===2?'引き分け':'ハンターの勝利';
+  $('resultSubtitle').textContent=escaped>=3?'仲間と切り拓いた脱出路。':escaped===2?'全員は助けられなかった。':'次は仲間との連携を考えよう。';
+  $('resultStat').innerHTML=`<div class="stat"><strong>${escaped}/4</strong><span>脱出</span></div><div class="stat"><strong>${ciphers.filter(c=>c.p>=1).length}/${REQUIRED}</strong><span>修復</span></div><div class="stat"><strong>${stats.rescues}</strong><span>救助</span></div>`;
+  sound(escaped>=3?660:120,.32);stats.elapsedGame=elapsed;
+}
+function announce(text,time=2.1){msg=text;msgUntil=elapsed+time;$('banner').textContent=text;$('banner').classList.add('show')}
+function pushParticle(x,y,color,count=9,speed=80){for(let i=0;i<count;i++){let a=rand(0,TAU),v=rand(speed*.3,speed);particles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:rand(1.5,4),life:rand(.25,.65),max:.65,color})}}
+function palletRect(p){return {x:p.x-35,y:p.y-15,w:70,h:30}}
+function activeWalls(o){return o===hunter?[...obstacles,...pallets.filter(p=>p.used&&p.t>0).map(palletRect)]:obstacles}
+function moveCircle(o,dx,dy){let ox=o.x,oy=o.y,solid=activeWalls(o);o.x=clamp(o.x+dx,o.r+32,W-o.r-32);for(const b of solid){if(circleRect(o,b)){if(dx>0)o.x=b.x-o.r;else if(dx<0)o.x=b.x+b.w+o.r}}o.y=clamp(o.y+dy,o.r+32,H-o.r-32);for(const b of solid){if(circleRect(o,b)){if(dy>0)o.y=b.y-o.r;else if(dy<0)o.y=b.y+b.h+o.r}}return Math.hypot(o.x-ox,o.y-oy)}
+function circleRect(c,r){const x=clamp(c.x,r.x,r.x+r.w),y=clamp(c.y,r.y,r.y+r.h);return (c.x-x)**2+(c.y-y)**2<c.r*c.r}
+function inside(o,r){return o.x>r.x&&o.x<r.x+r.w&&o.y>r.y&&o.y<r.y+r.h}
+function segmentRect(ax,ay,bx,by,r){let minX=r.x,maxX=r.x+r.w,minY=r.y,maxY=r.y+r.h;const dx=bx-ax,dy=by-ay;let t0=0,t1=1;for(const [p,q] of [[-dx,ax-minX],[dx,maxX-ax],[-dy,ay-minY],[dy,maxY-ay]]){if(!p){if(q<0)return false}else{let v=q/p;if(p<0)t0=Math.max(t0,v);else t1=Math.min(t1,v);if(t0>t1)return false}}return true}
+function sight(a,b){for(const r of obstacles){if(segmentRect(a.x,a.y,b.x,b.y,r))return false}return true}
+function travelSight(a,b,radius=21){for(const r of obstacles){const pad=radius+2;if(segmentRect(a.x,a.y,b.x,b.y,{x:r.x-pad,y:r.y-pad,w:r.w+pad*2,h:r.h+pad*2}))return false}return true}
+const GRID=40,cols=Math.ceil(W/GRID),rows=Math.ceil(H/GRID);
+function cellBlocked(gx,gy){if(gx<1||gy<1||gx>=cols-1||gy>=rows-1)return true;let x=gx*GRID+GRID/2,y=gy*GRID+GRID/2;return [...obstacles,...pallets.filter(p=>p.used&&p.t>0).map(palletRect)].some(r=>x>r.x-24&&x<r.x+r.w+24&&y>r.y-24&&y<r.y+r.h+24)}
+function pathfind(from,to){let sx=clamp(Math.floor(from.x/GRID),1,cols-2),sy=clamp(Math.floor(from.y/GRID),1,rows-2),tx=clamp(Math.floor(to.x/GRID),1,cols-2),ty=clamp(Math.floor(to.y/GRID),1,rows-2);
+// Resolve an unreachable target cell to a nearby traversable cell.
+if(cellBlocked(tx,ty)){let found=null;for(let d=1;d<5&&!found;d++)for(let x=tx-d;x<=tx+d&&!found;x++)for(let y=ty-d;y<=ty+d;y++)if(!cellBlocked(x,y)){found={x,y};break}if(found){tx=found.x;ty=found.y}}
+let open=[{x:sx,y:sy,g:0,f:Math.hypot(tx-sx,ty-sy)}],cost=new Map([[`${sx},${sy}`,0]]),parent=new Map(),closed=new Set(),iterations=0,dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+while(open.length&&iterations++<1300){let best=0;for(let i=1;i<open.length;i++)if(open[i].f<open[best].f)best=i;let cur=open.splice(best,1)[0],id=`${cur.x},${cur.y}`;if(closed.has(id))continue;closed.add(id);if(cur.x===tx&&cur.y===ty){let out=[],key=id;while(parent.has(key)&&out.length<100){let [x,y]=key.split(',').map(Number);out.unshift({x:(x+.5)*GRID,y:(y+.5)*GRID});key=parent.get(key)}return out}
+for(const [dx,dy] of dirs){let nx=cur.x+dx,ny=cur.y+dy,nid=`${nx},${ny}`;if(closed.has(nid)||cellBlocked(nx,ny))continue;if(dx&&dy&&(cellBlocked(cur.x+dx,cur.y)||cellBlocked(cur.x,cur.y+dy)))continue;let ng=cur.g+Math.hypot(dx,dy);if(ng<(cost.get(nid)??Infinity)){cost.set(nid,ng);parent.set(nid,id);open.push({x:nx,y:ny,g:ng,f:ng+Math.hypot(tx-nx,ty-ny)})}}}return []}
+function nearestAction(){
+ const solved=ciphers.filter(c=>c.p>=1).length,opts=[];
+ if(!playable(player))return null;
+ if(solved>=REQUIRED){for(const g of gates)if(!g.open)opts.push({type:'gate',target:g,dist:dist(player,g),limit:88});}
+ for(const s of bots)if(s.captured>0&&!s.out)opts.push({type:'rescue',target:s,dist:dist(player,s),limit:73});
+ if(solved<REQUIRED)for(const c of ciphers)if(c.p<1)opts.push({type:'cipher',target:c,dist:dist(player,c),limit:92});
+ for(const p of pallets)if(!p.used)opts.push({type:'pallet',target:p,dist:dist(player,p),limit:76});
+ const priority={rescue:0,gate:1,pallet:2,cipher:3};
+ opts.sort((a,b)=>a.dist-b.dist ||priority[a.type]-priority[b.type]);return opts.find(a=>a.dist<a.limit)||null;
+}
+const playable=s=>!s.out&&!s.escaped&&s.captured<=0;
+const completed=()=>ciphers.filter(c=>c.p>=1).length;
+function logEvent(type,data={}){botLog.push({t:Math.round(elapsed*10)/10,type,...data});if(botLog.length>250)botLog.shift();}
+// SOUND = immutable *event location*, never the moving player's true coordinate.
+function emitNoise(x,y,radius,kind){noiseEvents.push({id:++noiseSeq,x,y,radius,kind,at:elapsed});if(noiseEvents.length>35)noiseEvents.shift()}
+function buildSearchPoints(origin){
+ // Search known location and nearby sightlines. The current player position is never an input.
+ const points=[{x:origin.x,y:origin.y}];const dirs=[0,Math.PI/2,Math.PI,Math.PI*1.5];
+ const phase=Math.floor(origin.x*0.13+origin.y*0.17)%4;
+ for(let j=0;j<3;j++){const ang=dirs[(j+phase)%4],r=95+(j%2)*45;let p={x:clamp(origin.x+Math.cos(ang)*r,70,W-70),y:clamp(origin.y+Math.sin(ang)*r,70,H-70)};
+   if(!obstacles.some(w=>inside(p,w)))points.push(p)}
+ return points;
+}
+function setHunterState(next){hunter.state=next;hunter.path=[];hunter.pathAt=0}
+function enterSearch(location){
+ hunter.last={x:location.x,y:location.y};hunter.searchPoints=buildSearchPoints(hunter.last);hunter.searchIndex=0;
+ hunter.searchUntil=elapsed+AI.searchDuration;setHunterState('search');
+}
+function enterInvestigation(soundEvent){
+ hunter.lastHeard={x:soundEvent.x,y:soundEvent.y,id:soundEvent.id,kind:soundEvent.kind};
+ hunter.noiseId=soundEvent.id;hunter.investigateUntil=elapsed+5.8;
+ setHunterState('investigate');
+}
+function canHunterSee(s){
+ if(!playable(s)||elapsed<5||hunter.stun>0||hunter.reacquire>0||dist(hunter,s)>AI.sight||!sight(hunter,s))return false;
+ const d=dist(hunter,s),hidden=bushes.some(b=>inside(s,b)),near=hidden?(s.crouched?50:65):AI.close;
+ if(hidden&&d>near)return false;
+ if(d<near)return true;
+ if(s.crouched&&d>235)return false;
+ const angle=Math.atan2(s.y-hunter.y,s.x-hunter.x);
+ return Math.cos(angle-hunter.dir)>=Math.cos(AI.fov/2);
+}
+function turnHunterToward(angle,dt){
+ const diff=Math.atan2(Math.sin(angle-hunter.dir),Math.cos(angle-hunter.dir));
+ hunter.dir+=clamp(diff,-3.4*dt,3.4*dt);
+}
+function updateHunter(dt){
+ if(hunter.stun>0)return;
+ const before=hunter.state;
+ const visible=survivors.filter(canHunterSee);
+ const existing=visible.find(s=>s.id===hunter.targetId);
+ const chosen=existing || visible.sort((a,b)=>dist(hunter,a)-(a.hp===1?26:0)-dist(hunter,b)+(b.hp===1?26:0))[0];
+ if(chosen){
+   if(hunter.state!=='chase'||hunter.targetId!==chosen.id){logEvent('chase',{target:chosen.id});if(chosen.id===0)stats.playerChases++;else stats.botChases++;if(chosen.id===0)announce('ハンターに発見された！ 仲間は修復を続ける',2)}
+   hunter.targetId=chosen.id;hunter.last={x:chosen.x,y:chosen.y};hunter.lastSeen=elapsed;hunter.alerted=true;
+   if(hunter.state!=='chase')setHunterState('chase');
+ }else if(before==='chase'){
+   hunter.targetId=null;enterSearch(hunter.last);
+   if(!player.out&&!player.captured)announce('ハンターが最後に見た場所を捜索中',1.1);
+ }
+ // The hunter may investigate sounds, but never receives the source survivor's live location.
+ if(hunter.state!=='chase'){
+   const soundEvent=noiseEvents.filter(n=>n.id>hunter.noiseId&&elapsed-n.at<1.5&&dist(hunter,n)<=n.radius).sort((a,b)=>b.id-a.id)[0];
+   if(soundEvent){hunter.noiseId=soundEvent.id;
+     if(hunter.state==='patrol'||hunter.state==='investigate'||(hunter.state==='search'&&soundEvent.kind==='decode'))enterInvestigation(soundEvent);
+   }
+ }
+ let target=null;
+ if(hunter.state==='chase')target=hunter.last;
+ else if(hunter.state==='search'){
+   if(elapsed>=hunter.searchUntil){setHunterState('patrol');hunter.targetId=null}
+   else{target=hunter.searchPoints[hunter.searchIndex]||hunter.last;
+     if(dist(hunter,target)<52){hunter.searchIndex=(hunter.searchIndex+1)%hunter.searchPoints.length;target=hunter.searchPoints[hunter.searchIndex];hunter.path=[];hunter.pathAt=0}}
+ }else if(hunter.state==='investigate'){
+   target=hunter.lastHeard;
+   if(elapsed>=hunter.investigateUntil)setHunterState('patrol');
+   else if(target&&dist(hunter,target)<52)hunter.investigateUntil=Math.min(hunter.investigateUntil,elapsed+1.0);
+ }
+ if(hunter.state==='patrol'){
+   const repairs=ciphers.filter(c=>c.p<1),pts=repairs.length?repairs:ciphers;
+   const loc=pts[hunter.patrol%pts.length];target={x:loc.x+55,y:loc.y+25};if(dist(hunter,target)<65)hunter.patrol++;
+ }
+ if(!target)return;
+ let waypoint=target;
+ if(travelSight(hunter,target,21)&&dist(hunter,target)<430){hunter.path=[];waypoint=target}
+ else{hunter.pathAt-=dt;if(hunter.pathAt<=0||!hunter.path.length){hunter.path=pathfind(hunter,target);hunter.pathAt=.45}
+   if(hunter.path.length){if(dist(hunter,hunter.path[0])<28)hunter.path.shift();waypoint=hunter.path[0]||target}}
+ const dx=waypoint.x-hunter.x,dy=waypoint.y-hunter.y,dd=Math.hypot(dx,dy);
+ if(dd>1){const speed=hunter.state==='chase'?AI.chaseSpeed:hunter.state==='search'?AI.searchSpeed:hunter.state==='investigate'?AI.investigateSpeed:AI.patrolSpeed;
+   const moved=moveCircle(hunter,dx/dd*speed*dt,dy/dd*speed*dt);
+   if(moved<.2){hunter.stuck=(hunter.stuck||0)+dt;if(hunter.stuck>.5){hunter.path=[];hunter.pathAt=0}}
+   else hunter.stuck=0;
+   turnHunterToward(Math.atan2(dy,dx),dt)}
+ // Hit only a visible or already-committed target. No striking through walls.
+ let hitTarget=hunter.state==='chase'?survivors.find(s=>s.id===hunter.targetId):null;
+ if(hitTarget&&playable(hitTarget)&&dist(hitTarget,hunter)<49&&hunter.attackCD<=0&&hitTarget.inv<=0&&sight(hunter,hitTarget)){
+   hunter.attackCD=3.4;hitTarget.hp--;hitTarget.inv=3.4;stats.hits++;
+   pushParticle(hitTarget.x,hitTarget.y,'#f39ba5',18,130);sound(120,.25,'sawtooth',.085);logEvent('hit',{id:hitTarget.id,hp:hitTarget.hp});
+   hunter.stun=.8;
+   if(hitTarget.hp<=0){captureSurvivor(hitTarget)}
+   else{if(hitTarget.id===0){flash=.8;shake=5;player.dash=Math.max(player.dash,1.25)}
+     else{hitTarget.fleeUntil=elapsed+4.2;hitTarget.hitBoostUntil=elapsed+1.35;hitTarget.evadeTo=null}
+     hunter.targetId=null;enterSearch({x:hitTarget.x,y:hitTarget.y});}
+ }
+}
+function captureSurvivor(s){
+ s.captures++;s.captured=s.captures>=3?0:(s.captures===1?38:25);s.hp=0;s.inv=0;
+ if(s.captures>=3){s.out=true;logEvent('eliminated',{id:s.id});}
+ else logEvent('captured',{id:s.id});
+ if(s.id===0){resetInputs();announce(s.out?'脱落した。仲間の戦いを観戦中':'捕まった！ 仲間の救助を待とう',2.4)}
+ else announce(`${s.name}が捕まった！ 救助が必要`,1.8);
+ hunter.targetId=null;hunter.stun=1.25;enterSearch({x:s.x,y:s.y});
+ hunter.searchUntil=Math.min(hunter.searchUntil,elapsed+2.0); // avoids camping a capture
+}
+function rescueSurvivor(s,by){
+ if(s.captured<=0||s.out)return false;
+ s.captured=0;s.hp=1;s.inv=4.2;
+ if(s.id!==0){s.fleeUntil=elapsed+6;s.evadeTo=null;}
+ else {player.dash=Math.max(player.dash,1.3);player.crouched=false;}
+ stats.rescues++;logEvent('rescue',{id:s.id,by:by.id});
+ announce(`${by.name}が${s.name}を救助！`,1.5);return true;
+}
+function updateCaptures(dt){
+ for(const s of survivors)if(s.captured>0){s.captured=Math.max(0,s.captured-dt);if(s.captured<=0){s.out=true;logEvent('eliminated',{id:s.id});announce(`${s.name}が脱落した`,1.4)}}
+}
+
+function steerBot(b,target,dt,speed=170){
+ if(!target)return false;
+ b.pathAt-=dt;
+ if(b.pathAt<=0||!b.waypoints.length){b.pathAt=.7;b.waypoints=travelSight(b,target,17)?[]:pathfind(b,target)}
+ if(b.waypoints.length&&dist(b,b.waypoints[0])<27)b.waypoints.shift();
+ const p=b.waypoints[0]||target,d=Math.hypot(p.x-b.x,p.y-b.y);
+ if(d>1){const delta=moveCircle(b,(p.x-b.x)/d*speed*dt,(p.y-b.y)/d*speed*dt);
+   b.dir=Math.atan2(p.y-b.y,p.x-b.x);
+   if(delta<.25&&dt>0){b.stuckAt+=dt;if(b.stuckAt>.65){b.waypoints=[];b.pathAt=0;b.stuckAt=0}}
+   else b.stuckAt=0;}
+ return dist(b,target)<72;
+}
+function nearestSafeCorner(b){
+ const reference=b.lastThreat||{x:800,y:510};
+ const dirs=[0,Math.PI/2,Math.PI,Math.PI*1.5,Math.PI/4,-Math.PI/4,Math.PI*3/4,-Math.PI*3/4];
+ const options=[];
+ for(const a of dirs){const x=clamp(b.x+Math.cos(a)*245,55,W-55),y=clamp(b.y+Math.sin(a)*245,55,H-55);
+   if(obstacles.some(o=>inside({x,y},o)))continue;
+   options.push({x,y,score:dist({x,y},reference)+(!sight({x,y},reference)?150:0)-dist({x,y},b)*.1});}
+ options.sort((a,b)=>b.score-a.score);return options[0]||{x:b.x,y:b.y};
+}
+function chooseBotRole(b){
+ if(!playable(b))return;
+ const sees=canSurvivorSeeHunter(b);if(sees)b.lastThreat={x:hunter.x,y:hunter.y};
+ const threatened=sees; // no perfect global hunter position from hidden areas
+ if(threatened){b.role='evade';b.fleeUntil=elapsed+3.4;return}
+ if(b.role==='evade'&&elapsed<b.fleeUntil)return;
+ const rescueTargets=survivors.filter(s=>s.captured>0&&!s.out&&s!==b);
+ if(rescueTargets.length){
+  const rescuedByOthers=bots.some(other=>other!==b&&other.role==='rescue'&&playable(other));
+  const tgt=rescueTargets.sort((a,b2)=>dist(b,a)-dist(b,b2))[0];
+  if(!rescuedByOthers&&(dist(b,tgt)<780||tgt.id===0)&&!(canSurvivorSeeHunter(b)&&dist(b,hunter)<220)){
+    b.role='rescue';b.goal=tgt;return;
+  }
+ }
+ if(completed()>=REQUIRED){b.role='escape';b.goal=null;return;}
+ if(b.role==='repair'&&b.goal&&b.goal.p<1)return;
+ b.role='repair';
+ const free=ciphers.filter(c=>c.p<1),others=bots.filter(o=>o!==b&&playable(o)&&o.role==='repair').map(o=>o.goal);
+ const pool=free.filter(c=>!others.includes(c));
+ const selected=(pool.length?pool:free).sort((a,b2)=>dist(b,a)-a.p*60-dist(b,b2)+b2.p*60)[0];
+ if(selected)b.goal=selected;
+}
+function canSurvivorSeeHunter(s){return dist(s,hunter)<165&&sight(s,hunter)}
+function updateBots(dt){
+ for(const b of bots){if(!playable(b))continue;
+   b.sprintCD=Math.max(0,(b.sprintCD||0)-dt);b.sprintTime=Math.max(0,(b.sprintTime||0)-dt);
+   b.inv=Math.max(0,b.inv-dt);b.decisionAt-=dt;
+   if(b.decisionAt<=0){chooseBotRole(b);b.decisionAt=.85+b.id*.13;b.waypoints=[];b.pathAt=0}
+   b.hidden=bushes.some(gr=>inside(b,gr));
+   if(b.role==='evade'){
+     if(b.sprintCD<=0&&canSurvivorSeeHunter(b)){b.sprintTime=.85;b.sprintCD=16;}
+     if(!b.evadeTo||dist(b,b.evadeTo)<68||elapsed%3<dt){b.evadeTo=nearestSafeCorner(b);b.waypoints=[];b.pathAt=0}
+     steerBot(b,b.evadeTo,dt,b.hitBoostUntil>elapsed?270:(b.hp===1?184:187));
+     // Pallets only work when colliding, not by proximity alone
+     const p=pallets.find(p=>!p.used&&dist(b,p)<45&&dist(hunter,p)<58);
+     if(p){p.used=true;p.t=6.5;hunter.stun=1.65;hunter.path=[];logEvent('bot_pallet',{id:b.id});}
+     continue;
+   }
+   if(b.role==='rescue'&&b.goal&&b.goal.captured>0){
+     if(dist(b,b.goal)<59){b.rescueAt+=dt;if(b.rescueAt>=2.8){rescueSurvivor(b.goal,b);b.rescueAt=0;b.goal=null;b.decisionAt=0}}
+     else{b.rescueAt=0;steerBot(b,b.goal,dt,170)}
+     continue;
+   }
+   if(b.role==='escape'){
+     const active=gates.filter(g=>g.open);
+     if(active.length){const closest=active.sort((a,b2)=>dist(b,a)-dist(b,b2))[0];
+       if(dist(b,closest)<84){b.escaped=true;logEvent('escaped',{id:b.id});announce(`${b.name}が脱出！`,1.5)}
+       else steerBot(b,closest,dt,174);
+     }else{
+       const candidates=[...gates].sort((a,b2)=>dist(b,a)-dist(b,b2));
+       const chosen=candidates.find(g=>!g.open)||candidates[0];
+       if(dist(b,chosen)<82){chosen.p=Math.min(1,chosen.p+dt/5);if(chosen.p>=1){chosen.open=true;logEvent('gate',{id:b.id});announce(`${b.name}が出口を開放した！`,1.9)}}
+       else steerBot(b,chosen,dt,171);
+     }
+     continue;
+   }
+   if(b.role==='repair'){
+     if(!b.goal||b.goal.p>=1){b.decisionAt=0;continue}
+     if(dist(b,b.goal)>77){steerBot(b,b.goal,dt,171);b.progress=0}
+     else{
+       b.progress+=dt;
+       b.goal.p=Math.min(1,b.goal.p+dt/34);
+       if(b.progress>=2){emitNoise(b.goal.x,b.goal.y,205,'decode');b.progress=0}
+       if(b.goal.p>=1){stats.teamRepairs++;logEvent('repair',{by:b.id});announce(`${b.name}が修復完了！ 残り${Math.max(0,REQUIRED-completed())}台`,1.5);b.goal=null;b.decisionAt=0}
+     }
+   }
+ }
+}
+function checkTeamFinish(){
+ if(mode!=='playing')return;
+ const resolved=survivors.every(s=>s.escaped||s.out);
+ if(resolved||survivors.filter(s=>s.escaped).length>=3){finish(true);return}
+ if(elapsed>MAX_TIME){for(const s of survivors)if(!s.escaped)s.out=true;finish(false);return}
+ if(survivors.filter(s=>!s.out).length<2)finish(false);
+}
+function update(dt){
+ elapsed+=dt;
+ player.inv=Math.max(0,player.inv-dt);player.dashCD=Math.max(0,player.dashCD-dt);player.dash=Math.max(0,player.dash-dt);
+ hunter.stun=Math.max(0,hunter.stun-dt);hunter.reacquire=Math.max(0,(hunter.reacquire||0)-dt);hunter.attackCD=Math.max(0,hunter.attackCD-dt);
+ shake=Math.max(0,shake-dt*12);flash=Math.max(0,flash-dt*2);
+ for(const p of pallets)if(p.t>0)p.t=Math.max(0,p.t-dt);
+ if(playable(player)){
+   const vx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0)+joy.x;
+   const vy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0)+joy.y;
+   const len=Math.hypot(vx,vy),walking=len>.15,action=nearestAction(),holding=holdKey||holdTouch;
+   const stationaryAction=holding&&action&&action.type!=='pallet';
+   if(walking&&!stationaryAction){const ux=vx/Math.max(1,len),uy=vy/Math.max(1,len),spd=player.dash>0?AI.dashSpeed:player.crouched?AI.crouchSpeed:AI.walkSpeed;
+     moveCircle(player,ux*spd*dt,uy*spd*dt);player.dir=Math.atan2(uy,ux);
+     stepNoiseTimer-=dt;if(stepNoiseTimer<=0){stepNoiseTimer=player.dash>0?.3:player.crouched?.9:.6;emitNoise(player.x,player.y,player.dash>0?215:player.crouched?58:105,player.dash>0?'dash':'step')}
+   }else stepNoiseTimer=0;
+   player.hidden=bushes.some(b=>inside(player,b));
+   if(holding&&action){
+     if(action.type==='pallet'){
+       const p=action.target;p.used=true;p.t=6.5;holdTouch=false;holdKey=false;hunter.pathAt=0;
+       const hit=circleRect(hunter,{x:p.x-37,y:p.y-20,w:74,h:40});if(hit){hunter.stun=2.3;logEvent('player_pallet');}
+       sound(210,.1);announce(hit?'板が命中！':'板で通路を塞いだ',1.1);
+     }else if(action.type==='rescue'){
+       rescueHold+=dt;if(rescueHold>=2.75){rescueSurvivor(action.target,player);rescueHold=0}
+     }else if(action.type==='gate'){
+       const g=action.target;g.p=Math.min(1,g.p+dt/4.5);if(g.p>=1){g.open=true;announce('出口が開いた！ 地面の出口へ進もう',1.6);logEvent('gate',{id:0})}
+     }else if(action.type==='cipher'){
+       const c=action.target;c.p=Math.min(1,c.p+dt/17);decodeNoiseTimer-=dt;
+       if(decodeNoiseTimer<=0){decodeNoiseTimer=2;emitNoise(c.x,c.y,218,'decode')}
+       if(c.p>=1){stats.playerRepairs++;logEvent('repair',{by:0});announce(`修復完了！ 残り${Math.max(0,REQUIRED-completed())}台`,1.6)}
+     }
+   }else{rescueHold=0;decodeNoiseTimer=0}
+   if(completed()>=REQUIRED)for(const g of gates)if(g.open&&dist(g,player)<76){player.escaped=true;resetInputs();logEvent('escaped',{id:0});announce('脱出成功！ 仲間を見守ろう',2)}
+ }else{rescueHold=0}
+ updateBots(dt);updateCaptures(dt);updateHunter(dt);
+ for(const s of survivors)if(playable(s)&&dist(s,hunter)<350&&sight(s,hunter)){hunterSpotted={x:hunter.x,y:hunter.y,at:elapsed};break;}
+ for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.exp(-2*dt);p.vy*=Math.exp(-2*dt);p.life-=dt}
+ particles=particles.filter(p=>p.life>0);noiseEvents=noiseEvents.filter(n=>elapsed-n.at<2);
+ if(msgUntil<elapsed)$('banner').classList.remove('show');
+ updateHud(playable(player)?nearestAction():null);checkTeamFinish();
+}
+
+function updateHud(action){
+ const done=completed();$('objectiveText').textContent=done<REQUIRED?`修復 ${done}/${REQUIRED}　協力して脱出`:'出口が開放可能！ 脱出しよう';
+ [...$('meters').children].forEach((i,idx)=>i.classList.toggle('done',idx<Math.floor(done/REQUIRED*3+.01)));
+ $('hearts').textContent=player.out?'×':player.escaped?'✓':player.captured>0?'⌛':player.hp===2?'♥ ♥':'♥ ♡';
+ const near=dist(player,hunter);$('dangerLabel').textContent=player.out?'脱落・観戦中':player.escaped?'脱出・観戦中':player.captured>0?'拘束中・救助待ち':hunter.state==='chase'?'⚠ ハンターが追跡中':hunter.state==='search'?'捜索中':near<210?'⚠ ハンターが接近':'仲間と協力して脱出';
+ const colors=['#9fe3d3','#b6c4f3','#e5bc95','#d4c39e'];
+ $('teamStatus').innerHTML=survivors.map((s,i)=>`<span class="member" style="--member:${colors[i]}">${s.id===0?'自分':s.name} <b>${s.out?'×':s.escaped?'脱出':s.captured>0?'拘束':s.hp===1?'負傷':s.role==='repair'?'解読':s.role==='rescue'?'救助':s.role==='evade'?'逃走':'行動'}</b></span>`).join('');
+ $('toolStatus').textContent=`脱出 ${survivors.filter(s=>s.escaped).length}/4 · 救助 ${stats.rescues} · 修復 ${done}/${REQUIRED}${elapsed>420?' · 残り'+Math.ceil((MAX_TIME-elapsed)/60)+'分':''}`;
+ crouchBtn.classList.toggle('selected',player.crouched);rockBtn.classList.remove('selected');$('rockBtnText').textContent='仲間';
+ $('abilityText').textContent=player.dashCD<=0?'準備完了':`${player.dashCD.toFixed(1)}秒`;
+ $('abilityBar').style.width=`${100*(1-player.dashCD/AI.dashCooldown)}%`;
+ dashBtn.disabled=player.dashCD>0||!playable(player);dashBtn.style.opacity=dashBtn.disabled?'.5':'1';
+ $('timer').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(Math.floor(elapsed%60)).padStart(2,'0')}`;
+ $('context').style.opacity=action?'1':'0';
+ if(action){const t=action.type,txt=t==='cipher'?'暗号機を修復':t==='gate'?'出口を開放':t==='rescue'?`${action.target.name}を救助`:'板を倒す';
+   $('contextText').textContent=txt;$('context').querySelector('.keycap').textContent=isTouch()?'✦':'E';
+   $('touchActionText').textContent=t==='pallet'?'板':t==='rescue'?'救助':t==='gate'?'開門':'修復';
+   $('actionProgress').style.opacity=t==='pallet'?'0':'1';
+   $('actionProgressBar').style.width=`${Math.round((t==='rescue'?rescueHold/2.75:action.target.p||0)*100)}%`;
+ }else {$('touchActionText').textContent='調べる';$('actionProgress').style.opacity='0'}
+}
+
+function dash(){if(mode!=='playing'||!playable(player)||player.dashCD>0)return;player.crouched=false;player.dash=.9;player.dashCD=AI.dashCooldown;emitNoise(player.x,player.y,240,'dash');pushParticle(player.x,player.y,'#f5d08a',12,65);sound(290,.16,'triangle',.065)}
+function toggleCrouch(){if(mode!=='playing'||!playable(player))return;player.crouched=!player.crouched;if(player.crouched)player.dash=0}
+function cancelAim(){aiming=false;aimPoint=null;$('aimPrompt').classList.remove('show');mobile.classList.remove('aiming');rockBtn.classList.remove('selected')}
+function toggleAim(){if(mode!=='playing')return;if(aiming){cancelAim();return}if(player.rocks<=0){announce('石を持っていない。補充場所を探そう',1.6);return}aiming=true;aimPoint=null;mobile.classList.add('aiming');$('aimPrompt').classList.add('show')}
+function chooseRockTarget(screenX,screenY){
+ if(mode!=='playing'||!aiming)return false;
+ const x=(screenX-view.w/2)/view.zoom+view.cx,y=(screenY-view.h/2)/view.zoom+view.cy;
+ const range=Math.hypot(x-player.x,y-player.y);
+ // Ignore UI/invalid targets. A wall may obstruct the straight throwing line.
+ if(x<45||y<45||x>W-45||y>H-45||range>AI.rockRange||obstacles.some(o=>inside({x,y},o))||!sight(player,{x,y})){
+   announce('石は300以内の見通せる地面に投げよう',1.8);return false;
+ }
+ player.rocks--;emitNoise(x,y,275,'rock');emitNoise(player.x,player.y,70,'rustle');
+ pushParticle(x,y,'#e2d09a',14,75);sound(280,.12,'triangle',.055);
+ cancelAim();announce('石を投げた！ 音を調べに来るかも',1.8);return true;
+}
+// Only enabled for local automated verification: no network, progression, or multiplayer effects.
+if((new URLSearchParams(location.search).has('testmode')||window.__FORCE_TEST__===true))window.__yorugiriTest={
+ state:()=>JSON.parse(JSON.stringify({mode,elapsed,player,bots,survivors,hunter,noiseEvents,gates,ciphers,pallets,stats,botLog},(key,value)=>key==='goal'&&value?{x:value.x,y:value.y,p:value.p,id:value.id,captured:value.captured}:value)),
+ setPlayer:(x,y)=>{player.x=x;player.y=y},setHunter:(x,y,dir=0)=>{hunter.x=x;hunter.y=y;hunter.dir=dir;hunter.stun=0;hunter.path=[];hunter.pathAt=0},
+ tick:(seconds)=>{for(let t=0;t<seconds;t+=.016)update(Math.min(.016,seconds-t))},
+ crouch:toggleCrouch,aim:toggleAim,throwAt:(x,y)=>{const p=worldScreen(x,y);return chooseRockTarget(p.x,p.y)},
+ noise:(x,y,radius=300,kind='rock')=>emitNoise(x,y,radius,kind),
+ setHunterState:(state)=>{hunter.state=state;hunter.path=[];hunter.pathAt=0},
+  getEvents:()=>botLog,routeTo:(x,y)=>pathfind(player,{x,y}),freezeHunter:(seconds=180)=>{hunter.stun=seconds},damage:(id)=>{const s=survivors[id];if(!s||!playable(s))return;s.hp--;if(s.hp<=0)captureSurvivor(s)},revive:(id,byId=0)=>rescueSurvivor(survivors[id],survivors[byId]),complete:()=>{for(const c of ciphers.slice(0,5))c.p=1},
+ info:()=>({ai:AI,aiming,aimPoint,view})
+};
+const rawKey=e=>e.key.toLowerCase();addEventListener('keydown',e=>{let k=rawKey(e);if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();if(k==='escape'){if(aiming){cancelAim();return}pause();return}if(mode!=='playing')return;if(k==='c'&&!e.repeat)toggleCrouch();if(k==='shift'&&!e.repeat)dash();if(k==='e'||k===' '){holdKey=true}keys.add(k)});addEventListener('keyup',e=>{let k=rawKey(e);keys.delete(k);if(k==='e'||k===' ')holdKey=false});addEventListener('blur',()=>{if(typeof resetInputs==='function')resetInputs()});
+const stick=$('stickBase'),nub=$('stickNub'),moveArea=$('moveArea');
+ let touchMoveId=null,actionTouchId=null,rockTouchId=null,rockStart=null,rockDragTarget=null,rockWasAiming=false;
+function resetInputs(){cancelAim();keys.clear();holdTouch=false;holdKey=false;touchMoveId=null;actionTouchId=null;rockTouchId=null;rockStart=null;rockDragTarget=null;rockWasAiming=false;clearStick();actionBtn.classList.remove('down')}
+addEventListener('pagehide',resetInputs);
+addEventListener('visibilitychange',()=>{if(document.hidden)resetInputs()});
+function updateJoy(e){let b=stick.getBoundingClientRect(),cx=b.left+b.width/2,cy=b.top+b.height/2,dx=e.clientX-cx,dy=e.clientY-cy,r=b.width*.30,len=Math.hypot(dx,dy),factor=Math.min(1,r/Math.max(len,1));let px=dx*factor,py=dy*factor;nub.style.transform=`translate(${px}px,${py}px)`;joy.x=clamp(px/r,-1,1);joy.y=clamp(py/r,-1,1)}
+// Touch events are used directly on iOS. Pointer events remain the desktop/mouse fallback.
+function clearStick(){joy.id=null;joy.x=joy.y=0;nub.style.transform='translate(0,0)';stick.style.removeProperty('top');stick.style.removeProperty('left');stick.style.removeProperty('bottom');stick.classList.remove('active')}
+ // Floating thumb origin: start from the finger's touch point, never from an unrelated fixed center.
+ function placeStick(t){const area=moveArea.getBoundingClientRect(),half=stick.offsetWidth/2;stick.style.left=`${t.clientX-area.left-half}px`;stick.style.top=`${t.clientY-area.top-half}px`;stick.style.bottom='auto';stick.classList.add('active')}
+moveArea.addEventListener('touchstart',e=>{if(mode!=='playing')return; e.preventDefault();if(touchMoveId!==null)return;const t=e.changedTouches[0];touchMoveId=t.identifier;placeStick(t);updateJoy(t)},{passive:false});
+moveArea.addEventListener('touchmove',e=>{if(touchMoveId===null)return;e.preventDefault();for(const t of e.changedTouches){if(t.identifier===touchMoveId){updateJoy(t);break}}},{passive:false});
+function finishMoveTouch(e){if(touchMoveId===null)return;for(const t of e.changedTouches){if(t.identifier===touchMoveId){touchMoveId=null;clearStick();break}}}
+moveArea.addEventListener('touchend',finishMoveTouch,{passive:true});moveArea.addEventListener('touchcancel',finishMoveTouch,{passive:true});
+moveArea.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'||mode!=='playing')return;e.preventDefault();moveArea.setPointerCapture(e.pointerId);joy.id=e.pointerId;placeStick(e);updateJoy(e)});
+moveArea.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;if(joy.id===e.pointerId)updateJoy(e)});
+function clearPointerJoy(e){if(e.pointerType==='touch'||joy.id!==e.pointerId)return;clearStick()}
+moveArea.addEventListener('pointerup',clearPointerJoy);moveArea.addEventListener('pointercancel',clearPointerJoy);moveArea.addEventListener('lostpointercapture',clearPointerJoy);
+actionBtn.addEventListener('touchstart',e=>{if(mode!=='playing')return;e.preventDefault();if(actionTouchId!==null)return;actionTouchId=e.changedTouches[0].identifier;holdTouch=true;actionBtn.classList.add('down')},{passive:false});
+function releaseTouch(){holdTouch=false;actionTouchId=null;actionBtn.classList.remove('down')}
+ actionBtn.addEventListener('touchmove',e=>{if(actionTouchId!==null)e.preventDefault()},{passive:false});
+function finishActionTouch(e){for(const t of e.changedTouches){if(t.identifier===actionTouchId){releaseTouch();break}}}
+actionBtn.addEventListener('touchend',finishActionTouch,{passive:true});actionBtn.addEventListener('touchcancel',finishActionTouch,{passive:true});
+actionBtn.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'||mode!=='playing')return;e.preventDefault();actionBtn.setPointerCapture(e.pointerId);holdTouch=true;actionBtn.classList.add('down')});
+actionBtn.addEventListener('pointerup',e=>{if(e.pointerType!=='touch')releaseTouch()});actionBtn.addEventListener('pointercancel',e=>{if(e.pointerType!=='touch')releaseTouch()});actionBtn.addEventListener('lostpointercapture',e=>{if(e.pointerType!=='touch')releaseTouch()});
+dashBtn.addEventListener('touchstart',e=>{e.preventDefault();dash()},{passive:false});dashBtn.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'){e.preventDefault();dash()}});
+function bindToggle(btn,fn){btn.addEventListener('touchstart',e=>{e.preventDefault();fn()},{passive:false});btn.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch'){e.preventDefault();fn()}})}
+bindToggle(crouchBtn,toggleCrouch);
+ rockBtn.addEventListener('touchstart',e=>{e.preventDefault();announce('仲間の状態は左上に表示中',1.1)},{passive:false});
+ rockBtn.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')announce('仲間の状態は左上に表示中',1.1)});
+
+cvs.addEventListener('touchstart',e=>{if(!aiming||mode!=='playing')return;e.preventDefault();const t=e.changedTouches[0];if(t)chooseRockTarget(t.clientX,t.clientY)},{passive:false});
+cvs.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'||!aiming||mode!=='playing')return;e.preventDefault();chooseRockTarget(e.clientX,e.clientY)});
+cvs.addEventListener('pointermove',e=>{if(aiming)aimPoint={x:e.clientX,y:e.clientY}});
+$('pauseBtn').addEventListener('click',pause);$('startBtn').addEventListener('click',start);$('restartBtn').addEventListener('click',start);$('resumeBtn').addEventListener('click',pause);
+function worldScreen(x,y){return {x:(x-view.cx)*view.zoom+view.w/2,y:(y-view.cy)*view.zoom+view.h/2}}
+function visible(x,y,pad=130){const s=worldScreen(x,y);return s.x>-pad&&s.x<view.w+pad&&s.y>-pad&&s.y<view.h+pad}
+function roundRect(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.stroke()}}
+function polygon(pts,fill){ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.closePath();ctx.fillStyle=fill;ctx.fill()}
+function draw(){const w=view.w,h=view.h,ratio=view.dpr;ctx.setTransform(ratio,0,0,ratio,0,0);ctx.fillStyle='#17252c';ctx.fillRect(0,0,w,h);
+const watch=playable(player)?player:(survivors.find(s=>s.id===hunter.targetId&&playable(s))||bots.find(playable)||player);
+ view.cx+=(clamp(watch.x,w/(2*view.zoom),W-w/(2*view.zoom))-view.cx)*.12;view.cy+=(clamp(watch.y,h/(2*view.zoom),H-h/(2*view.zoom))-view.cy)*.12;
+let sx=shake>0?rand(-shake,shake):0,sy=shake>0?rand(-shake,shake):0;
+ctx.save();ctx.translate(w/2+sx,h/2+sy);ctx.scale(view.zoom,view.zoom);ctx.translate(-view.cx,-view.cy);
+ctx.fillStyle='#17282e';ctx.fillRect(0,0,W,H);
+// paths and textural patchwork
+ctx.fillStyle='#24353a';roundRect(32,32,W-64,H-64,23,'#203038','#677c7750');
+ctx.save();ctx.strokeStyle='#b3c8be07';ctx.lineWidth=1;for(let x=40;x<W-40;x+=40){ctx.beginPath();ctx.moveTo(x,40);ctx.lineTo(x,H-40);ctx.stroke()}for(let y=40;y<H-40;y+=40){ctx.beginPath();ctx.moveTo(40,y);ctx.lineTo(W-40,y);ctx.stroke()}ctx.restore();
+for(const d of decor){ctx.fillStyle=d.kind<3?`rgba(114,155,132,${d.alpha})`:`rgba(181,197,165,${d.alpha*.48})`;ctx.beginPath();ctx.ellipse(d.x,d.y,d.size,d.size*.36,Math.sin(d.x)*2,0,TAU);ctx.fill()}
+// Ground-level sight fan. Rays stop at walls, matching line-of-sight detection.
+if(mode==='playing'){
+ ctx.save();ctx.beginPath();ctx.moveTo(hunter.x,hunter.y);
+ for(let i=0;i<=24;i++){
+   const angle=hunter.dir-AI.fov/2+AI.fov*i/24,dx=Math.cos(angle),dy=Math.sin(angle);
+   let limit=AI.sight;
+   for(const r of obstacles){
+     let entry=0,exit=limit;
+     if(Math.abs(dx)<.000001){if(hunter.x<r.x||hunter.x>r.x+r.w)continue}
+     else{const a=(r.x-hunter.x)/dx,b=(r.x+r.w-hunter.x)/dx;entry=Math.max(entry,Math.min(a,b));exit=Math.min(exit,Math.max(a,b))}
+     if(Math.abs(dy)<.000001){if(hunter.y<r.y||hunter.y>r.y+r.h)continue}
+     else{const a=(r.y-hunter.y)/dy,b=(r.y+r.h-hunter.y)/dy;entry=Math.max(entry,Math.min(a,b));exit=Math.min(exit,Math.max(a,b))}
+     if(exit>=entry)limit=Math.min(limit,Math.max(0,entry));
+   }
+   ctx.lineTo(hunter.x+dx*limit,hunter.y+dy*limit);
+ }
+ ctx.closePath();ctx.fillStyle=hunter.state==='chase'?'#fa657527':'#e8a78919';ctx.fill();
+ ctx.beginPath();ctx.arc(hunter.x,hunter.y,AI.close,0,TAU);ctx.fillStyle='#e8a7890d';ctx.fill();ctx.restore();
+}
+// ruined walls
+for(const r of obstacles){roundRect(r.x+5,r.y+9,r.w,r.h,9,'#080f1a6e');roundRect(r.x,r.y,r.w,r.h,8,'#566263','#818b8499');roundRect(r.x+8,r.y+7,r.w-16,r.h-15,4,'#4a5659','#82938e66');ctx.strokeStyle='#94a6a04a';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(r.x+16,r.y+r.h*.5);ctx.lineTo(r.x+r.w*.64,r.y+r.h*.51);ctx.lineTo(r.x+r.w*.72,r.y+r.h-9);ctx.stroke();ctx.strokeStyle='#232f31';ctx.beginPath();ctx.moveTo(r.x+r.w*.26,r.y+10);ctx.lineTo(r.x+r.w*.32,r.y+26);ctx.stroke()}
+// tall grass, darker underside and translucent fronds
+for(const b of bushes){roundRect(b.x,b.y,b.w,b.h,20,'#152c2a','#6c9c7750');for(let i=0;i<18;i++){let gx=b.x+12+((i*71)%Math.max(15,b.w-24)),gy=b.y+13+((i*43)%Math.max(15,b.h-25));ctx.strokeStyle=i%3?'#507963aa':'#7ca487bb';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(gx,gy+7);ctx.quadraticCurveTo(gx+((i%3)-1)*7,gy-7,gx+((i%4)-2)*5,gy-14);ctx.stroke()}}
+// consumable rock pickups
+for(const p of rockPiles)if(p.left>0){ctx.fillStyle='#e7d2a4';ctx.beginPath();ctx.arc(p.x,p.y,12,0,TAU);ctx.fill();ctx.fillStyle='#536363';ctx.beginPath();ctx.arc(p.x+3,p.y-3,5,0,TAU);ctx.fill();worldLabel(p.x,p.y-30,'石の補充','#e6d19e')}
+// border and exit arrow
+ctx.strokeStyle='#a9bfb54a';ctx.lineWidth=9;ctx.strokeRect(35,35,W-70,H-70);
+// two exits
+for(const g of gates){let glow=ctx.createRadialGradient(g.x,g.y,5,g.x,g.y,125);glow.addColorStop(0,g.open?'#ace7b149':'#dfb87340');glow.addColorStop(1,'#dfb87300');ctx.fillStyle=glow;ctx.fillRect(g.x-125,g.y-125,250,250);ctx.save();ctx.translate(g.x,g.y);ctx.rotate(-Math.PI/2);roundRect(-47,-20,94,40,4,'#5b5148','#eac488');for(let i=-29;i<=29;i+=20)roundRect(i-5,-14,11,29,2,g.open?'#78c5a6':'#242b31');ctx.restore();worldLabel(g.x,g.y+54,g.open?'出口 OPEN':completed()>=REQUIRED?'出口 開放可能':'脱出ゲート',g.open?'#9fe3d3':'#e6c888');if(completed()>=REQUIRED&&!g.open)drawProgress(g.x,g.y-51,g.p,100)}
+// pallet visual
+for(const p of pallets){if(p.used&&p.t<=0)continue;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);ctx.globalAlpha=p.used?.62:1;roundRect(-32,-9,64,18,3,p.used?'#d2b47d':'#a57851','#f8cc89');for(let i=-22;i<=23;i+=15){ctx.fillStyle='#5c3b30';ctx.fillRect(i,-7,3,14)}ctx.restore();if(!p.used)worldLabel(p.x,p.y-31,'板','#dec8aa')}
+// cipher machines
+for(const c of ciphers){let done=c.p>=1;let glow=ctx.createRadialGradient(c.x,c.y,4,c.x,c.y,73);glow.addColorStop(0,done?'#8ce7c330':'#b0e5de3e');glow.addColorStop(1,'#9fd2c400');ctx.fillStyle=glow;ctx.fillRect(c.x-73,c.y-73,146,146);ctx.save();ctx.translate(c.x,c.y);roundRect(-22,-19,44,38,6,done?'#46766e':'#65767a','#b3ccc394');roundRect(-15,-13,30,15,2,done?'#b3edce':'#34434d');ctx.fillStyle=done?'#b3edce':'#f4c67b';for(let i=-9;i<=9;i+=9)ctx.fillRect(i,8,4,4);ctx.strokeStyle='#9cc2b6';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(9,-20);ctx.lineTo(14,-31);ctx.stroke();ctx.restore();if(!done)drawProgress(c.x,c.y-41,c.p,64);worldLabel(c.x,c.y+41,done?'解読済み':'暗号機',done?'#83cbb5':'#d1e1dd')}
+// particles
+for(const p of particles){ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,TAU);ctx.fill()}ctx.globalAlpha=1;
+// hunter alarm radius when chasing
+const near=dist(player,hunter);if(mode==='playing'&&near<390){let a=clamp((390-near)/390,0,.20),gl=ctx.createRadialGradient(hunter.x,hunter.y,0,hunter.x,hunter.y,125);gl.addColorStop(0,`rgba(246,100,119,${a})`);gl.addColorStop(1,'rgba(246,100,119,0)');ctx.fillStyle=gl;ctx.fillRect(hunter.x-125,hunter.y-125,250,250)}
+// tracker
+ctx.save();ctx.translate(hunter.x,hunter.y);ctx.rotate(hunter.dir);ctx.fillStyle='#050b10a8';ctx.beginPath();ctx.ellipse(3,9,22,10,0,0,TAU);ctx.fill();ctx.strokeStyle='#ed9cae';ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,0,23,0,TAU);ctx.stroke();polygon([[19,-11],[46,0],[19,11]],'#b7546c');ctx.fillStyle=hunter.stun>0?'#b3aea2':'#cf657a';ctx.beginPath();ctx.arc(0,0,19,0,TAU);ctx.fill();ctx.fillStyle='#321c2b';ctx.beginPath();ctx.arc(6,-6,4,0,TAU);ctx.arc(6,6,4,0,TAU);ctx.fill();ctx.restore();if(hunter.stun>0)worldLabel(hunter.x,hunter.y-44,'気絶中','#f5d59b');else if(hunter.state==='chase'&&mode==='playing')worldLabel(hunter.x,hunter.y-45,'追跡中！','#ff9dab');
+// player, pulse and directional scarf
+if(player.dash>0){ctx.fillStyle='#d6dba820';ctx.beginPath();ctx.arc(player.x,player.y,33,0,TAU);ctx.fill()}
+ctx.save();ctx.translate(player.x,player.y);ctx.rotate(player.dir);if(player.crouched)ctx.scale(.83,.83);ctx.fillStyle='#060a1090';ctx.beginPath();ctx.ellipse(4,9,22,9,0,0,TAU);ctx.fill();ctx.fillStyle='#d2b2a1';polygon([[-2,-8],[-30,-15],[-17,1],[-30,14],[-2,7]],'#e7b67c');ctx.fillStyle=player.inv>0&&Math.floor(elapsed*10)%2===0?'#567c83':'#74bfb4';ctx.beginPath();ctx.arc(0,0,17,0,TAU);ctx.fill();ctx.strokeStyle='#d9f4e6';ctx.lineWidth=3;ctx.stroke();ctx.fillStyle='#284b50';ctx.beginPath();ctx.arc(7,0,4,0,TAU);ctx.fill();ctx.restore();if(player.hidden)worldLabel(player.x,player.y-38,player.crouched?'静かに潜伏':'草むらに潜伏','#a4ddba');else if(player.crouched)worldLabel(player.x,player.y-38,'しゃがみ','#a4ddba');
+// Teammates, capture seals, and survivor status. Teammates use the same world coordinates and collision rules.
+for(const b of bots){
+ if(b.out||b.escaped)continue;
+ ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.dir);ctx.fillStyle=['#af8edb','#e1a873','#b3c481'][b.id-1];ctx.beginPath();ctx.arc(0,0,17,0,TAU);ctx.fill();ctx.strokeStyle=b.inv>0?'#fbe39b':'#deefe3';ctx.lineWidth=2.3;ctx.stroke();ctx.beginPath();ctx.moveTo(17,0);ctx.lineTo(26,0);ctx.stroke();ctx.restore();
+ if(b.captured>0){ctx.strokeStyle='#f09a9acc';ctx.lineWidth=4;ctx.beginPath();ctx.arc(b.x,b.y,27,0,TAU);ctx.stroke();ctx.beginPath();ctx.arc(b.x,b.y,33,Math.PI*-.5,Math.PI*(-.5+2*b.captured/(b.captures===1?27:19)));ctx.strokeStyle='#f0d38a';ctx.lineWidth=3;ctx.stroke();}
+ if(dist(player,b)<520)worldLabel(b.x,b.y-36,b.captured>0?`${b.name} 救助！`:b.role==='rescue'?`${b.name} 救助へ`:b.role==='evade'?`${b.name} 逃走`:b.name,b.captured>0?'#f2acac':'#d4e8d4');
+}
+if(player.captured>0&&!player.out){ctx.strokeStyle='#f0b2a5';ctx.lineWidth=4;ctx.beginPath();ctx.arc(player.x,player.y,28,0,TAU);ctx.stroke()}
+// Throw preview in WORLD coordinates, no range bypass
+if(aiming){
+ ctx.save();ctx.strokeStyle='#e3c791b8';ctx.lineWidth=2;ctx.setLineDash([10,9]);ctx.beginPath();ctx.arc(player.x,player.y,AI.rockRange,0,TAU);ctx.stroke();ctx.setLineDash([]);
+ if(aimPoint){const target={x:(aimPoint.x-view.w/2)/view.zoom+view.cx,y:(aimPoint.y-view.h/2)/view.zoom+view.cy};
+   const valid=dist(target,player)<=AI.rockRange&&!obstacles.some(r=>inside(target,r))&&sight(player,target);
+   ctx.strokeStyle=valid?'#a8e7b3':'#f4a5a5';ctx.beginPath();ctx.moveTo(player.x,player.y);ctx.lineTo(target.x,target.y);ctx.stroke();ctx.beginPath();ctx.arc(target.x,target.y,16,0,TAU);ctx.stroke()}
+ ctx.restore();}
+ctx.restore();
+// light, spotlight and chase vignette
+const pos=worldScreen(player.x,player.y);let lg=ctx.createRadialGradient(pos.x,pos.y,35,pos.x,pos.y,Math.max(240,Math.min(w,h)*.67));lg.addColorStop(0,'#bdedd510');lg.addColorStop(.6,'#0a111c05');lg.addColorStop(1,'#0710194c');ctx.fillStyle=lg;ctx.fillRect(0,0,w,h);
+if(mode==='playing'&&near<280){let o=clamp((280-near)/280*.17,0,.17);ctx.fillStyle=`rgba(149,30,53,${o})`;ctx.fillRect(0,0,w,h)}
+if(flash>0){ctx.fillStyle=`rgba(255,85,99,${flash*.24})`;ctx.fillRect(0,0,w,h)}
+// compass minimap (small, above mobile controls if mobile)
+if(mode==='playing'||mode==='paused')drawMinimap();
+}
+function worldLabel(x,y,text,color){ctx.font='bold 13px ui-sans-serif,system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';const width=ctx.measureText(text).width+16;roundRect(x-width/2,y-11,width,22,5,'#0b151edb','#ffffff13');ctx.fillStyle=color;ctx.fillText(text,x,y)}
+function drawProgress(x,y,p,width){roundRect(x-width/2,y-4,width,7,4,'#151f28','#a8e9db4a');if(p>.005)roundRect(x-width/2+2,y-2,Math.max(0,(width-4)*p),3,2,'#a2e7d3')}
+function drawMinimap(){const size=isTouch()?96:142,x=view.w-size-12,y=isTouch()?view.h-size-230:95,scale=size/W;ctx.save();ctx.globalAlpha=.92;roundRect(x,y,size,size*H/W,8,'#0b1924de','#cad8cf58');ctx.save();ctx.beginPath();ctx.roundRect(x,y,size,size*H/W,8);ctx.clip();for(const r of obstacles){ctx.fillStyle='#7c8d8e';ctx.fillRect(x+r.x*scale,y+r.y*scale,r.w*scale,r.h*scale)}for(const c of ciphers){ctx.fillStyle=c.p>=1?'#a1efd0':'#f0d299';ctx.beginPath();ctx.arc(x+c.x*scale,y+c.y*scale,3.4,0,TAU);ctx.fill()}for(const g of gates){ctx.fillStyle=g.open?'#a1efd0':'#e9cc89';ctx.fillRect(x+g.x*scale-3,y+g.y*scale-3,6,6)}for(const b of bots){if(!b.out&&!b.escaped){ctx.fillStyle=b.captured>0?'#f1a0a0':'#a7b2ec';ctx.beginPath();ctx.arc(x+b.x*scale,y+b.y*scale,3.8,0,TAU);ctx.fill()}}if(elapsed-hunterSpotted.at<5){ctx.globalAlpha=Math.max(.22,1-(elapsed-hunterSpotted.at)/5);ctx.fillStyle='#f48a9e';ctx.beginPath();ctx.arc(x+hunterSpotted.x*scale,y+hunterSpotted.y*scale,4.1,0,TAU);ctx.fill();ctx.globalAlpha=.92}ctx.fillStyle='#b8eee1';ctx.beginPath();ctx.arc(x+player.x*scale,y+player.y*scale,4.2,0,TAU);ctx.fill();ctx.restore();ctx.restore()}
+function tick(t){const dt=Math.min((t-last)/1000,.033);last=t;if(mode==='playing')update(dt);draw();requestAnimationFrame(tick)}
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
